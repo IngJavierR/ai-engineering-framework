@@ -1,0 +1,21 @@
+
+framework:
+  name: ai-engineering-framework
+  version: 0.1.0
+  status: experimental
+
+  description: >
+    Versioned AI engineering framework
+    for GitHub Copilot.
+
+  supportedLanguages:
+    - java
+
+  capabilities:
+    agents: false
+    skills: false
+    clientPolicies: false
+    automatedQualityGates: false
+
+  distribution:
+    mode: central-versioned
