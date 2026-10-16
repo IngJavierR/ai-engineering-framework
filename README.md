@@ -36,3 +36,26 @@ automáticas se incorporarán progresivamente.
 
 Cada etapa debe validarse antes de avanzar
 a la siguiente.
+
+
+## Agentes disponibles
+
+### Engineering Orchestrator
+
+Ubicación:
+`.github/agents/orchestrator.agent.md`
+
+Responsabilidad:
+- Analizar solicitudes de ingeniería.
+- Identificar el contexto del repositorio.
+- Evaluar impacto y riesgos.
+- Proponer planes de implementación.
+- Identificar validaciones necesarias.
+
+Restricciones:
+- No modifica archivos.
+- No implementa código.
+- No ejecuta pruebas.
+- No coordina todavía otros agentes.
+
+Estado: Disponible para validación en el MVP.

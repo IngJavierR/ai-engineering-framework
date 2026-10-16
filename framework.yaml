@@ -12,7 +12,7 @@ framework:
     - java
 
   capabilities:
-    agents: false
+    agents: true
     skills: false
     clientPolicies: false
     automatedQualityGates: false
