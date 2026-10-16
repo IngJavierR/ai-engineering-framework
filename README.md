@@ -59,3 +59,28 @@ Restricciones:
 - No coordina todavía otros agentes.
 
 Estado: Disponible para validación en el MVP.
+
+## Instrucciones de ingeniería
+
+### Java
+
+Archivo:
+`.github/instructions/java.instructions.md`
+
+Alcance:
+Archivos Java que coincidan con `**/*.java`.
+
+Incluye:
+- Buenas prácticas de diseño.
+- Separación de responsabilidades.
+- Reglas arquitectónicas.
+- DDD cuando corresponda.
+- Manejo de errores.
+- Seguridad.
+- Pruebas.
+- Migraciones con Liquibase.
+- Gestión de cambios.
+
+Estas instrucciones son declarativas.
+Todavía no existen validadores automáticos
+que garanticen su cumplimiento.
