@@ -84,3 +84,36 @@ Incluye:
 Estas instrucciones son declarativas.
 Todavía no existen validadores automáticos
 que garanticen su cumplimiento.
+
+
+## Distribución experimental
+
+El framework puede instalar instrucciones Java
+en repositorios Git independientes.
+
+### Instalación
+
+Desde el repositorio central:
+
+```bash
+python3 tools/install.py \
+  --target ../java-framework-lab \
+  --dry-run
+
+python3 tools/install.py \
+  --target ../java-framework-lab
+```
+
+### Alcance actual
+
+- Distribución de instrucciones Java.
+- Registro de versión y commit de origen.
+- Prevención de sobrescrituras accidentales.
+- Ejecución idempotente para una misma versión.
+
+### Limitaciones
+
+- No distribuye todavía agentes ni políticas.
+- No actualiza automáticamente instalaciones anteriores.
+- No fusiona cambios locales.
+- No reemplaza validaciones de CI.
