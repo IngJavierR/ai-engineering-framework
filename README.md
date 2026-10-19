@@ -185,3 +185,35 @@ Primera skill especializada del framework.
 
 Las reglas globales de Liquibase XML permanecen
 definidas en las instrucciones del framework.
+
+## M1 — Skill openapi-to-ddd
+
+Ubicación:
+`.github/skills/openapi-to-ddd/SKILL.md`
+
+### Objetivo
+
+Interpretar contratos OpenAPI y construir o
+evolucionar APIs Java Spring Boot utilizando
+Domain-Driven Design.
+
+### Capacidades
+
+- Analizar contratos OpenAPI.
+- Distinguir proyectos nuevos y existentes.
+- Identificar componentes y límites de dominio.
+- Proponer arquitectura DDD con puertos y adaptadores.
+- Analizar impacto sobre funcionalidades existentes.
+- Identificar cambios estructurales de BD.
+- Aplicar el gobierno Liquibase XML.
+- Definir pruebas de contrato y regresión.
+- Evaluar compatibilidad hacia atrás.
+
+### Estado
+
+- Skill definida y disponible en el repositorio.
+- Pruebas de interpretación realizadas durante M1.
+- Generación y compilación de API: pendiente.
+- Validación real del contrato: pendiente.
+- Pruebas sobre PostgreSQL: pendiente.
+- Distribución a consumidores: pendiente.
