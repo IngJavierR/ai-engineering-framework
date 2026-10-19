@@ -131,4 +131,3 @@ Check:
 5. Resulting schema.
 6. Repeat execution.
 7. Rollback safety, where applicable.
-```

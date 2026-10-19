@@ -13,7 +13,7 @@ framework:
 
   capabilities:
     agents: true
-    skills: false
+    skills: true
     clientPolicies: false
     automatedQualityGates: false
 

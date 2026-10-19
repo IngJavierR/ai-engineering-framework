@@ -157,3 +157,31 @@ no están sujetas a esta regla.
 - Skills especializadas: pendientes.
 - Pruebas automatizadas de contrato: pendientes.
 - Validación sobre PostgreSQL temporal: pendiente.
+
+## M1 — Skill liquibase-versioning
+
+Ubicación:
+`.github/skills/liquibase-versioning/SKILL.md`
+
+Primera skill especializada del framework.
+
+### Responsabilidades
+
+- Clasificar cambios estructurales de BD.
+- Analizar impacto y compatibilidad.
+- Generar changesets Liquibase XML.
+- Preservar cambios previamente aplicados.
+- Evaluar preconditions y rollback.
+- Definir validaciones necesarias.
+
+### Estado
+
+- Definición de skill: implementada.
+- Validación de comportamiento en Copilot:
+  ejecutada durante M1.
+- Distribución a proyectos consumidores: pendiente.
+- Ejecución real sobre PostgreSQL: pendiente.
+- Validación automatizada de cambiosets: pendiente.
+
+Las reglas globales de Liquibase XML permanecen
+definidas en las instrucciones del framework.
