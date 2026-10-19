@@ -117,3 +117,43 @@ python3 tools/install.py \
 - No actualiza automáticamente instalaciones anteriores.
 - No fusiona cambios locales.
 - No reemplaza validaciones de CI.
+
+## M1 — OpenAPI + DDD + Liquibase XML
+
+### Objetivo
+
+Incorporar capacidades para construir y ampliar
+APIs Java a partir de contratos OpenAPI, utilizando
+Domain-Driven Design y manteniendo compatibilidad
+con las funcionalidades existentes.
+
+### Gobierno de base de datos
+
+Todo cambio estructural de base de datos debe
+estar versionado mediante Liquibase XML.
+
+Esta regla incluye:
+- Tablas y columnas.
+- Índices y restricciones.
+- Llaves primarias y foráneas.
+- Vistas, secuencias, funciones y triggers.
+- Cualquier otro objeto estructural.
+
+No está permitido modificar la estructura de BD
+mediante mecanismos externos a Liquibase.
+
+Las operaciones normales sobre datos de negocio
+no están sujetas a esta regla.
+
+### Instrucciones disponibles
+
+- `.github/instructions/openapi-ddd.instructions.md`
+- `.github/instructions/liquibase.instructions.md`
+
+### Estado
+
+- Gobierno OpenAPI + DDD: definido.
+- Gobierno Liquibase XML: definido.
+- Skills especializadas: pendientes.
+- Pruebas automatizadas de contrato: pendientes.
+- Validación sobre PostgreSQL temporal: pendiente.
