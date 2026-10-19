@@ -44,3 +44,22 @@ projects, and technology stacks.
 
 Avoid assumptions that would prevent
 future extensibility.
+
+## API and Database Governance
+
+When working on Java APIs:
+
+- Follow the applicable OpenAPI and DDD standards.
+- Preserve approved API contracts.
+- Perform compatibility analysis for existing APIs.
+
+For ANY database structural change:
+
+- Liquibase XML is mandatory.
+- Do not execute uncontrolled DDL.
+- Do not enable automatic schema generation.
+- Preserve executed changesets.
+- Validate structural changes before completion.
+
+These rules apply even when database changes
+are triggered indirectly by Java application work.
