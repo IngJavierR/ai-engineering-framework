@@ -110,6 +110,8 @@ databaseChangeLog root element.
 ## Changeset Rules
 
 - Never edit a previously executed changeset.
+- Verify immutability using the approved baseline content or hashes
+    calculated from that baseline. Never add invented hash values.
 - Avoid unnecessary changes within one changeset.
 - Preserve deterministic execution ordering.
 - Review preconditions before deployment.
@@ -126,8 +128,30 @@ a validated database migration.
 Check:
 1. XML syntax.
 2. Liquibase validation.
-3. Existing changeset integrity.
-4. Application against a disposable database.
+3. Existing changeset integrity against a verifiable baseline.
+4. Application against a disposable database; for evolutionary
+   changes, begin with the previous schema and existing records.
 5. Resulting schema.
-6. Repeat execution.
-7. Rollback safety, where applicable.
+6. Data preservation.
+7. One DATABASECHANGELOG record for each executed changeset.
+8. Repeat execution.
+9. Index and constraint behavior on the real database engine.
+10. Concurrent behavior when a changed rule depends on concurrency,
+    such as uniqueness.
+11. Rollback safety, where applicable.
+
+## Test Data and Rollback
+
+Loading and cleaning test data are DML activities, not structural DDL;
+they may be used to prepare validation scenarios under project policy.
+
+A rollback that drops a column or table can discard data written after
+deployment. State this risk and prefer a forward recovery strategy
+when retaining that data is required.
+
+## Validation Evidence
+
+Use GENERATED for produced artifacts, COMPILED for evidenced successful
+compilation, TESTED for executed checks with known scope, and VALIDATED
+only when the declared acceptance criteria have sufficient evidence.
+Report NOT_RUN for applicable checks that remain pending.

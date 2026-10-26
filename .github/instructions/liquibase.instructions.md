@@ -35,6 +35,9 @@ This policy applies to new and existing projects.
 7. Every changeset must be included in the
    project's root database changelog.
 
+8. Verify applied changeset immutability against content or hashes
+   calculated from a real, verifiable baseline. Never invent hashes.
+
 ## Structural Changes Covered
 
 The policy includes:
@@ -94,6 +97,9 @@ of this structural-change policy.
 Do not introduce data migrations or seed data
 unless explicitly requested and approved.
 
+Loading or cleaning test data is not structural DDL and is not
+prohibited by this policy.
+
 ## Validation
 
 When executable tooling is available:
@@ -106,6 +112,15 @@ When executable tooling is available:
 5. Verify the resulting database structure.
 6. Check repeat execution behavior.
 7. Report compatibility and rollback risks.
+8. For evolutionary migrations, apply the changesets to a database
+   with the previous schema and existing records; do not validate only
+   against a clean database.
+9. Verify data preservation and that each changeset is recorded once
+   in DATABASECHANGELOG.
+10. Validate indexes and constraints against the real database engine
+   when the required tooling is available.
+11. Test concurrent operations when changing a rule whose behavior
+   depends on concurrency, such as uniqueness.
 
 Never report PASS for checks not executed.
 

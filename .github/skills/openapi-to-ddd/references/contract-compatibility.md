@@ -60,6 +60,26 @@ Analyze:
 A successful OpenAPI diff does not prove
 behavioral or consumer compatibility.
 
+## Directional Analysis
+
+Assess each direction separately:
+
+| Direction | Question |
+| --- | --- |
+| Backward request compatibility | Can existing requests be accepted by the proposed API? |
+| Forward request compatibility | Can proposed requests be accepted by the currently deployed API when rollout needs it? |
+| Backward response compatibility | Can existing consumers interpret proposed responses? |
+| Forward response compatibility | Can proposed consumers interpret responses from the currently deployed API when rollout needs it? |
+
+Evaluate strict consumers explicitly. Adding an optional response
+property can still fail a consumer that rejects unknown properties.
+
+Optional, omitted and null values are distinct. Record separately:
+- whether a property is required by OpenAPI
+- whether it may be omitted from JSON
+- whether JSON null is allowed
+- whether the persistence representation permits null
+
 ## Existing Projects
 
 Before implementing:
@@ -81,6 +101,25 @@ For each affected operation:
 - Status code verification
 - Authorization behavior
 - Relevant boundary conditions
+
+When applicable, include negative validation cases for:
+- missing required properties
+- invalid property types
+- invalid formats
+- minimum and maximum lengths or other declared bounds
+- declared constraints
+- additionalProperties behavior
+
+Validate runtime HTTP requests and responses against the contract.
+Parsing YAML, resolving references, or checking generated DTOs alone
+does not establish HTTP contract conformance.
+
+## Validator Coverage
+
+Document the validator, version, supported OpenAPI constructs and
+unsupported constructs used by the contract. A validator with partial
+coverage may provide TESTED evidence for its supported scope, but it
+does not establish complete OpenAPI conformance.
 
 For changed operations, include baseline
 regression scenarios.

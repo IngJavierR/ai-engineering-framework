@@ -74,6 +74,10 @@ Analyze:
 - Validation constraints
 - Error response contracts
 
+Document whether the selected validator covers the OpenAPI constructs
+used by the contract. Parsing YAML or resolving references validates
+the document input; it does not validate runtime HTTP conformance.
+
 Never silently modify the approved contract.
 
 Report invalid or ambiguous definitions.
@@ -165,12 +169,22 @@ Do not generate uncontrolled DDL scripts.
 Plan tests to verify:
 - Every required HTTP operation.
 - HTTP status codes.
-- Request schema validation.
-- Response schema validation.
+- Request schema validation with actual HTTP requests.
+- Actual HTTP responses against declared response schemas.
 - Required and optional fields.
 - Error contracts.
 - Authentication and authorization behavior.
 - Backward compatibility, when relevant.
+
+For each applicable validation mechanism, include negative cases for:
+- required properties
+- property types
+- formats
+- lengths and other declared constraints
+- additionalProperties behavior when defined by the contract
+
+Document unsupported constructs and validation limitations. Do not
+present a partial validator as complete OpenAPI conformance.
 
 Use supplied acceptance criteria.
 
@@ -187,6 +201,15 @@ For existing APIs:
 - Evaluate error and security contract changes.
 - Detect possible consumer incompatibilities.
 
+Analyze compatibility separately for:
+- existing requests sent to the proposed API
+- proposed requests sent to the existing API when rollout requires it
+- existing consumers interpreting proposed responses
+- strict consumers that reject unknown response properties
+
+Distinguish optional properties from omission, JSON nullability and
+persistence nullability. They have different compatibility effects.
+
 Read references/contract-compatibility.md.
 
 Do not declare compatibility without evidence.
@@ -202,6 +225,16 @@ tooling is available:
 - Run contract tests.
 - Validate Liquibase if database changes exist.
 - Report regression results.
+
+Use evidence states consistently:
+- GENERATED: artifacts were produced; compilation is not implied.
+- COMPILED: compilation succeeded with evidence.
+- TESTED: tests ran with verifiable results and known scope.
+- VALIDATED: declared acceptance criteria have sufficient evidence.
+
+Report NOT_RUN for applicable checks that were not performed. Do not
+use VALIDATED for generated artifacts, static inspection, or tests
+whose scope does not satisfy the declared acceptance criteria.
 
 Never claim that a check passed if it was
 not executed.
@@ -232,6 +265,9 @@ configuration, or usage changes.
 8. Compatibility assessment
 9. Validation evidence
 10. Final status
+
+For validation evidence, report the evidence state, checks executed,
+checks NOT_RUN, scope, limitations and supporting artifacts.
 
 ## Status
 

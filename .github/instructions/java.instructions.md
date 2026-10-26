@@ -54,6 +54,11 @@ When DDD is required by project policies:
 - Do not expose sensitive implementation details.
 - Use meaningful domain exceptions when appropriate.
 - Follow existing error contracts.
+- Translate database integrity failures to domain exceptions only
+  when the specific violated constraint is identified.
+- For PostgreSQL, use the SQLSTATE and constraint name when
+  available; do not map every DataIntegrityViolationException
+  to the same HTTP error.
 
 ## Security
 
@@ -73,6 +78,25 @@ When DDD is required by project policies:
 - Avoid mocking pure domain logic unnecessarily.
 - Preserve existing regression tests.
 - Never disable failing tests to make a build pass.
+- Isolate transactions in tests that intentionally cause SQL
+  failures. A failed PostgreSQL statement can leave its transaction
+  aborted until rollback.
+- Do not apply @Transactional indiscriminately to JDBC constraint
+  tests; use a transaction boundary appropriate to the assertion.
+- When Docker or Testcontainers is used for validation, verify the
+  selected runtime versions are compatible. Do not make either tool
+  a framework dependency solely for this purpose.
+
+## Validation Evidence
+
+- Use GENERATED only for produced artifacts; it does not imply
+  compilation.
+- Use COMPILED only with evidence of successful compilation.
+- Use TESTED only with verifiable test results and known scope.
+- Use VALIDATED only when the declared acceptance criteria have
+  sufficient evidence; generated artifacts or static inspection alone
+  are insufficient.
+- Report NOT_RUN for pending applicable verifications.
 
 ## Database
 

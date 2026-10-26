@@ -21,6 +21,10 @@ Support both new and existing projects.
   schemas, responses and security requirements.
 - Never silently modify the approved contract.
 - Detect breaking changes before implementation.
+- Validate actual HTTP responses against the declared OpenAPI schemas;
+  parsing or resolving an OpenAPI document is not conformance testing.
+- Treat partial validators as partial evidence and document unsupported
+  OpenAPI constructs and validation limitations.
 
 ## Domain-Driven Design
 
@@ -64,6 +68,13 @@ structural changes:
 - Verify required fields and constraints.
 - Validate error responses.
 - Verify backward compatibility for existing APIs.
+- Include negative validation cases for required properties, types,
+  formats, lengths, constraints and additionalProperties when the
+  contract defines them.
+- Analyze backward and forward compatibility separately for requests,
+  responses and strict consumers.
+- Distinguish optional properties, omitted properties, JSON nullability
+  and persistence nullability; do not treat them as interchangeable.
 
 ## Required Output
 

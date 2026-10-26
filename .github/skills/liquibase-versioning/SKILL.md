@@ -67,9 +67,14 @@ When working on an existing project:
 - Review existing changesets.
 - Identify constraints and dependencies.
 - Determine whether execution history is available.
+- Establish a verifiable baseline for applied changeset content when
+  immutability must be checked.
 
 Never assume that an existing changeset is safe
 to modify because its deployment state is unknown.
+
+Never invent hashes. Use content or hashes calculated from a real
+baseline, such as the approved source revision or deployment artifact.
 
 ### 3. Analyze Impact
 
@@ -81,6 +86,10 @@ Evaluate:
 - Referential integrity.
 - Potential destructive operations.
 - Rollback feasibility.
+
+For rules enforced by indexes or constraints, identify whether their
+correctness depends on concurrent operations and plan concurrency
+tests when it does.
 
 Prefer additive changes for existing systems.
 
@@ -131,6 +140,10 @@ For irreversible or high-risk changes:
 Never promise that rollback is safe without
 validation.
 
+Explicitly document that dropping a column or structural object can
+remove data written after deployment. Prefer forward recovery when a
+rollback would discard data that must be retained.
+
 ### 7. Validation Plan
 
 When tooling is available, validate:
@@ -138,11 +151,20 @@ When tooling is available, validate:
 - XML structure and Liquibase changelog syntax.
 - Duplicate changeset identities.
 - Root changelog inclusion.
-- Applied changeset integrity.
-- Application on a temporary PostgreSQL database.
+- Applied changeset integrity against the established baseline.
+- Application on a temporary PostgreSQL database with the previous
+  schema and representative existing records for evolutionary changes.
 - Expected resulting schema.
 - Repeat execution behavior.
+- Data preservation and one DATABASECHANGELOG entry per changeset.
+- Index and constraint behavior against the real database engine.
+- Concurrent operations when a changed rule depends on concurrency,
+  including uniqueness where applicable.
 - Rollback when safe and applicable.
+
+When Docker or Testcontainers is selected for validation, record the
+runtime and compatibility checks. Neither tool is required unless the
+project selects it.
 
 Report NOT_RUN for every check not executed.
 
@@ -157,6 +179,15 @@ Provide:
 6. Rollback or recovery strategy.
 7. Validation results.
 8. Remaining risks.
+
+For validation results, use these evidence states:
+- GENERATED: XML or related artifacts were produced.
+- COMPILED: applicable compilation succeeded with evidence.
+- TESTED: checks ran with verifiable results and known scope.
+- VALIDATED: declared acceptance criteria have sufficient evidence.
+
+Generated artifacts, static review, or partial checks alone do not
+justify VALIDATED. Report NOT_RUN for applicable pending checks.
 
 ## Safety
 
