@@ -1,4 +1,3 @@
-
 ---
 name: liquibase-versioning
 description: >

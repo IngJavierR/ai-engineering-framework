@@ -1,4 +1,3 @@
-
 ---
 name: openapi-to-ddd
 description: >
