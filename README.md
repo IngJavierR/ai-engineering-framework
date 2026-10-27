@@ -12,8 +12,8 @@ y clientes.
 
 ## Estado
 
-Versión candidata: 0.3.0
-Estado: Pendiente de release. No está publicada.
+Versión: 0.3.0
+Estado: Experimental, preparada para publicación.
 
 ## Componentes
 
@@ -82,7 +82,7 @@ framework y no se copian a los consumidores.
 La distribución no incorpora políticas de cliente ni quality gates
 generales. `automatedQualityGates` permanece en `false`.
 
-## Distribución candidata
+## Distribución
 
 El instalador requiere un repositorio Git destino y una fuente del
 framework sin cambios pendientes. Registra `.ai-framework.lock.json`
@@ -192,23 +192,22 @@ describen el progreso del trabajo y no reemplazan la evidencia anterior.
 La suite del instalador contiene 14 pruebas automatizadas ejecutadas y
 aprobadas durante R2.3. Esta evidencia cubre instalación, repetición,
 dry-run, locks, upgrade verificado desde v0.2.0, symlinks y recuperación
-de fallos manejables. No demuestra una validación end-to-end de la
-distribución candidata en un consumidor.
+de fallos manejables. La instalación limpia end-to-end, el upgrade desde
+v0.2.0, la idempotencia y la protección de modificaciones locales también
+se verificaron contra la línea base `1254d1067be22ad1be7b11fbfce4e04a03be76a7`.
 
-## Riesgos pendientes para R3
+## Limitaciones y validación funcional futura
 
-- Ejecutar una validación end-to-end en un consumidor temporal o
-  representativo antes de release.
-- Verificar la distribución candidata desde una instalación v0.2.0 y
-  una instalación limpia fuera de la suite unitaria.
-- Validar en un consumidor los flujos OpenAPI HTTP reales y las
-  migraciones Liquibase sobre PostgreSQL con datos previos cuando su
-  alcance lo requiera.
-- No declarar quality gates generales hasta que existan automatización,
-  definición de alcance y evidencia verificable.
+La validación funcional de OpenAPI, DDD y Liquibase XML fue realizada durante M1 sobre el laboratorio Java, con 40 pruebas automatizadas exitosas, incluidas pruebas de contrato HTTP y migración incremental sobre PostgreSQL con datos preexistentes.
+
+La versión 0.3.0 también superó las pruebas de instalación, actualización desde v0.2.0, idempotencia e integridad de artefactos distribuidos.
+
+Permanece pendiente una validación funcional independiente que demuestre el comportamiento de GitHub Copilot utilizando las skills actualizadas y distribuidas por v0.3.0 en un consumidor nuevo.
+
+El framework todavía no incorpora quality gates generales automatizados y no ofrece atomicidad global de instalación ante interrupciones abruptas.
 
 ## Versiones anteriores
 
 La versión `0.2.0` distribuyó únicamente la instrucción Java y registró
-un lock de un solo archivo. La candidata `0.3.0` mantiene una ruta de
+un lock de un solo archivo. La versión `0.3.0` mantiene una ruta de
 upgrade explícita y verificable desde esa instalación.

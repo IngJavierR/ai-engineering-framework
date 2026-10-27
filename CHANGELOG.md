@@ -1,13 +1,13 @@
 # Changelog
 
-Los cambios se registran por versión candidata o publicada. Una entrada
-marcada como candidata no implica que exista un tag, release ni artefacto
-publicado.
+Los cambios se registran por versión preparada para publicación o
+publicada. Una entrada sin fecha no implica que exista un tag, release
+ni artefacto publicado.
 
-## [0.3.0] - Candidata no publicada, pendiente de release
+## [0.3.0] - Preparada para publicación
 
 No existe todavía un tag, release ni artefacto publicado para esta
-versión candidata.
+versión.
 
 ### Instrucciones y skills
 
@@ -38,13 +38,19 @@ versión candidata.
 
 - 14 pruebas automatizadas del instalador ejecutadas y aprobadas durante
   R2.3.
+- Instalación limpia end-to-end, upgrade desde v0.2.0, idempotencia y
+  protección de modificaciones locales verificados contra la línea base
+  `1254d1067be22ad1be7b11fbfce4e04a03be76a7`.
 
-### Validación pendiente para R3
+### Limitaciones y validación funcional futura
 
-- Esta candidata no se ha validado end-to-end en un consumidor.
-- No existen quality gates automatizados generales del framework.
-- No hay atomicidad global ante `SIGKILL`, apagados o fallos del sistema
-  de archivos durante una instalación o upgrade.
+La validación funcional de OpenAPI, DDD y Liquibase XML fue realizada durante M1 sobre el laboratorio Java, con 40 pruebas automatizadas exitosas, incluidas pruebas de contrato HTTP y migración incremental sobre PostgreSQL con datos preexistentes.
+
+La versión 0.3.0 también superó las pruebas de instalación, actualización desde v0.2.0, idempotencia e integridad de artefactos distribuidos.
+
+Permanece pendiente una validación funcional independiente que demuestre el comportamiento de GitHub Copilot utilizando las skills actualizadas y distribuidas por v0.3.0 en un consumidor nuevo.
+
+El framework todavía no incorpora quality gates generales automatizados y no ofrece atomicidad global de instalación ante interrupciones abruptas.
 
 ## [0.2.0]
 

@@ -2,7 +2,7 @@
 framework:
   name: ai-engineering-framework
   version: 0.3.0
-  status: release-candidate
+  status: experimental
 
   description: >
     Versioned AI engineering framework
