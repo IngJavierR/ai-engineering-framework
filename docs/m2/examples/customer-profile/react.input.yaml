@@ -1,0 +1,121 @@
+schemaVersion: frontend-ui-input/v1
+featureId: FEAT-CUSTOMER-PROFILE-001
+templateStatus: illustrative-not-ready-for-execution
+title: Edición de perfil de cliente para consumidor React
+consumer:
+  id: react-customer-profile-consumer
+  stack: react
+  repositoryRoot: ../../../../labs/react-customer-profile-consumer
+  verificationStatus: not-verified
+  detection:
+    manifestPath: package.json
+    lockfilePath: package-lock.json
+    declaredVersions:
+      react: not-verified
+      typescript: not-verified
+    resolvedVersions:
+      react: not-verified
+      typescript: not-verified
+    detectionMethod: not-executed
+    reason: Este repositorio no contiene un consumidor React real para verificar versiones o lockfile.
+baseline:
+  commit: not-verified
+  requiredInitialWorkingTreeState: clean
+  snapshotPath: evidence/scope/initial-git-snapshot.json
+  verificationStatus: not-verified
+  reason: No se inventa un commit de un consumidor inexistente.
+scope:
+  allowedPaths:
+    - path: src/features/customer-profile
+      kind: directory
+    - path: src/shared/models/customerProfile.ts
+      kind: file
+    - path: src/assets/customer-profile
+      kind: directory
+    - path: evidence/scope
+      kind: directory
+    - path: evidence/traceability
+      kind: directory
+    - path: evidence/validation
+      kind: directory
+  protectedPaths:
+    - path: package.json
+      kind: file
+    - path: package-lock.json
+      kind: file
+    - path: src/app/routes.tsx
+      kind: file
+    - path: src/app/core
+      kind: directory
+  deletionPolicy:
+    allowed: false
+functionalSpecification:
+  id: SPEC-CUSTOMER-PROFILE-001
+  path: specification.md
+  sha256: sha256:549efa2aebe1b14c25f9612cfd365b1d1c8ecb7a3b51975974638b96a730d14a
+mockups:
+  - id: SCR-CUSTOMER-PROFILE-001-01
+    title: Formulario de edición de perfil de cliente
+    path: mockup.html
+    sha256: sha256:e3e1dc4966f3bfe38584edadfe7436c4777d60e4bd80d57533163d8d8b6590b3
+    conceptualComponentIds:
+      - CMP-CUSTOMER-PROFILE-001-01
+      - CMP-CUSTOMER-PROFILE-001-02
+assets: []
+apiContract:
+  status: not-applicable
+  reason: La feature ilustrativa no consume una API durante M2.
+requirements:
+  confirmed:
+    - id: REQ-CUSTOMER-PROFILE-001-01
+      sourceId: SPEC-CUSTOMER-PROFILE-001
+      statement: El formulario muestra un campo de texto etiquetado como Nombre visible.
+    - id: REQ-CUSTOMER-PROFILE-001-02
+      sourceId: SPEC-CUSTOMER-PROFILE-001
+      statement: El nombre visible es obligatorio y contiene entre 2 y 50 caracteres tras la normalización autorizada.
+  ambiguities:
+    - id: AMB-CUSTOMER-PROFILE-001-01
+      sourceId: SPEC-CUSTOMER-PROFILE-001
+      statement: No se define el tratamiento de espacios iniciales y finales.
+      blocksRequirementIds:
+        - REQ-CUSTOMER-PROFILE-001-02
+  inferences:
+    - id: INF-CUSTOMER-PROFILE-001-01
+      sourceId: SCR-CUSTOMER-PROFILE-001-01
+      statement: El botón Guardar representa una acción visual.
+      implementationAllowed: false
+  authorizedDecisions:
+    - id: DEC-CUSTOMER-PROFILE-001-01
+      resolvesAmbiguityId: AMB-CUSTOMER-PROFILE-001-01
+      statement: Eliminar espacios iniciales y finales antes de validar el nombre visible.
+      appliesToRequirementIds:
+        - REQ-CUSTOMER-PROFILE-001-02
+      authorizationEvidence:
+        status: not-verified
+        type: none
+        reason: No existe commit, pull request aprobada ni evidencia independiente real en este ejemplo.
+conceptualComponents:
+  - id: CMP-CUSTOMER-PROFILE-001-01
+    role: customer-profile-form
+    requirementIds:
+      - REQ-CUSTOMER-PROFILE-001-01
+      - REQ-CUSTOMER-PROFILE-001-02
+  - id: CMP-CUSTOMER-PROFILE-001-02
+    role: customer-profile-name-field
+    requirementIds:
+      - REQ-CUSTOMER-PROFILE-001-01
+      - REQ-CUSTOMER-PROFILE-001-02
+unitTests:
+  path: unit-tests.yaml
+  sha256: sha256:bdfe5deaefb2e9681aaba3d5df2211b519695e099238e76db1596bcf277484ee
+  caseIds:
+    - UT-CUSTOMER-PROFILE-001-01
+    - UT-CUSTOMER-PROFILE-001-02
+    - UT-CUSTOMER-PROFILE-001-03
+files:
+  - path: specification.md
+    sha256: sha256:549efa2aebe1b14c25f9612cfd365b1d1c8ecb7a3b51975974638b96a730d14a
+  - path: mockup.html
+    sha256: sha256:e3e1dc4966f3bfe38584edadfe7436c4777d60e4bd80d57533163d8d8b6590b3
+  - path: unit-tests.yaml
+    sha256: sha256:bdfe5deaefb2e9681aaba3d5df2211b519695e099238e76db1596bcf277484ee

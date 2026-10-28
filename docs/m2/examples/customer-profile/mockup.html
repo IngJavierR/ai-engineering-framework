@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mockup: edición de perfil de cliente</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: #f4f7fb;
+        color: #172033;
+      }
+
+      main {
+        max-width: 36rem;
+        margin: 3rem auto;
+        padding: 1.5rem;
+      }
+
+      form {
+        display: grid;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        background: #ffffff;
+        box-shadow: 0 0.5rem 1.5rem rgb(23 32 51 / 12%);
+      }
+
+      label {
+        display: grid;
+        gap: 0.5rem;
+        font-weight: 600;
+      }
+
+      input,
+      button {
+        font: inherit;
+      }
+
+      input {
+        padding: 0.75rem;
+        border: 1px solid #70809a;
+        border-radius: 0.375rem;
+      }
+
+      button {
+        justify-self: start;
+        padding: 0.75rem 1rem;
+        border: 0;
+        border-radius: 0.375rem;
+        background: #1456b8;
+        color: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Perfil de cliente</h1>
+      <form aria-label="Edición de perfil de cliente">
+        <label for="display-name">
+          Nombre visible
+          <input id="display-name" name="displayName" type="text" autocomplete="name">
+        </label>
+        <button type="button">Guardar</button>
+      </form>
+    </main>
+  </body>
+</html>

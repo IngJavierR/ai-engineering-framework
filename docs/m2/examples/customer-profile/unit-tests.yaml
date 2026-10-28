@@ -1,0 +1,117 @@
+schemaVersion: frontend-unit-tests/v1
+featureId: FEAT-CUSTOMER-PROFILE-001
+cases:
+  - id: UT-CUSTOMER-PROFILE-001-01
+    title: Presenta el campo Nombre visible en el formulario
+    requirementIds:
+      - REQ-CUSTOMER-PROFILE-001-01
+    componentIds:
+      - CMP-CUSTOMER-PROFILE-001-01
+      - CMP-CUSTOMER-PROFILE-001-02
+    priority: high
+    target:
+      type: component
+      conceptualUnitId: CMP-CUSTOMER-PROFILE-001-01
+      name: customerProfileForm
+    classification:
+      - positive
+      - regression
+    preconditions:
+      - statement: El componente se renderiza de forma aislada en un entorno DOM simulado compatible con el runner del consumidor.
+    mocks: []
+    input: {}
+    action:
+      type: render
+      operation: renderCustomerProfileForm
+    expected:
+      accessibleControls:
+        - role: textbox
+          name: Nombre visible
+      externalHttpCalls: 0
+    async:
+      isAsync: false
+      timerControl: not-applicable
+    isolation:
+      domSimulationAllowed: true
+      externalHttpAllowed: false
+      realBrowserAllowed: false
+      endToEndNavigationAllowed: false
+
+  - id: UT-CUSTOMER-PROFILE-001-02
+    title: Acepta un nombre visible válido después de eliminar espacios externos
+    requirementIds:
+      - REQ-CUSTOMER-PROFILE-001-02
+    componentIds:
+      - CMP-CUSTOMER-PROFILE-001-01
+      - CMP-CUSTOMER-PROFILE-001-02
+    priority: high
+    target:
+      type: validator
+      conceptualUnitId: CMP-CUSTOMER-PROFILE-001-02
+      name: customerProfileNameValidator
+    classification:
+      - positive
+      - regression
+    preconditions:
+      - decisionId: DEC-CUSTOMER-PROFILE-001-01
+        statement: Los espacios externos se eliminan antes de validar.
+    mocks: []
+    input:
+      displayName: "  Ana Torres  "
+    action:
+      type: invoke
+      operation: validateDisplayName
+    expected:
+      normalizedValue: Ana Torres
+      validation:
+        valid: true
+        errors: []
+    async:
+      isAsync: false
+      timerControl: not-applicable
+    isolation:
+      domSimulationAllowed: true
+      externalHttpAllowed: false
+      realBrowserAllowed: false
+      endToEndNavigationAllowed: false
+
+  - id: UT-CUSTOMER-PROFILE-001-03
+    title: Rechaza un nombre visible compuesto solamente por espacios
+    requirementIds:
+      - REQ-CUSTOMER-PROFILE-001-02
+    componentIds:
+      - CMP-CUSTOMER-PROFILE-001-01
+      - CMP-CUSTOMER-PROFILE-001-02
+    priority: critical
+    target:
+      type: validator
+      conceptualUnitId: CMP-CUSTOMER-PROFILE-001-02
+      name: customerProfileNameValidator
+    classification:
+      - negative
+      - boundary
+      - regression
+    preconditions:
+      - decisionId: DEC-CUSTOMER-PROFILE-001-01
+        statement: Los espacios externos se eliminan antes de validar.
+    mocks: []
+    input:
+      displayName: "   "
+    action:
+      type: invoke
+      operation: validateDisplayName
+    expected:
+      normalizedValue: ""
+      validation:
+        valid: false
+        errors:
+          - code: required
+            requirementId: REQ-CUSTOMER-PROFILE-001-02
+    async:
+      isAsync: false
+      timerControl: not-applicable
+    isolation:
+      domSimulationAllowed: true
+      externalHttpAllowed: false
+      realBrowserAllowed: false
+      endToEndNavigationAllowed: false

@@ -1,0 +1,98 @@
+schemaVersion: frontend-ui-output/v1
+featureId: FEAT-CUSTOMER-PROFILE-001
+templateStatus: illustrative-not-ready-for-execution
+consumer:
+  id: angular-customer-profile-consumer
+  stack: angular
+  commit: not-verified
+  verificationStatus: not-verified
+  reason: No existe un consumidor Angular real ni un commit real asociado a este ejemplo.
+inputManifest:
+  path: angular.input.yaml
+  status: not-verified
+  reason: El manifiesto de entrada es una plantilla ilustrativa y no un manifiesto ejecutable.
+scopeValidation:
+  baselineCommit: not-verified
+  initialSnapshot:
+    status: NOT_RUN
+    path: evidence/scope/initial-git-snapshot.json
+  finalSnapshot:
+    status: NOT_RUN
+    path: evidence/scope/final-git-snapshot.json
+  preExistingChanges:
+    status: NOT_RUN
+    files: []
+  attributableChanges:
+    status: NOT_RUN
+    files: []
+  concurrentChanges:
+    status: NOT_RUN
+    files: []
+  result: NOT_RUN
+  reason: No se inició implementación ni se capturaron snapshots Git.
+changes:
+  created: []
+  modified: []
+  deleted: []
+  renamed: []
+  typeChanged: []
+traceability:
+  consumer: angular
+  status: NOT_RUN
+  entries:
+    - requirementId: REQ-CUSTOMER-PROFILE-001-01
+      conceptualComponentId: CMP-CUSTOMER-PROFILE-001-01
+      yamlCaseIds:
+        - UT-CUSTOMER-PROFILE-001-01
+      technicalTestIds: []
+      result: NOT_RUN
+      evidence: []
+    - requirementId: REQ-CUSTOMER-PROFILE-001-02
+      conceptualComponentId: CMP-CUSTOMER-PROFILE-001-02
+      yamlCaseIds:
+        - UT-CUSTOMER-PROFILE-001-02
+        - UT-CUSTOMER-PROFILE-001-03
+      technicalTestIds: []
+      result: NOT_RUN
+      evidence: []
+validation:
+  build:
+    status: NOT_RUN
+    command: null
+    exitCode: null
+    resultFiles: []
+    reason: No se implementó ni ejecutó build.
+  typecheck:
+    status: NOT_RUN
+    command: null
+    exitCode: null
+    resultFiles: []
+    reason: No se implementó ni ejecutó typecheck.
+  unitTests:
+    status: NOT_RUN
+    runner: null
+    command: null
+    exitCode: null
+    resultFiles: []
+    reason: No se crearon ni ejecutaron pruebas unitarias.
+  coverage:
+    status: NOT_RUN
+    command: null
+    exitCode: null
+    metrics: null
+    resultFiles: []
+    reason: No se ha elegido runner ni política de cobertura.
+evidence:
+  commands: []
+  files: []
+  contentHashes: []
+  note: Este documento no registra ejecuciones ni resultados reales.
+workflowStatus: BLOCKED
+blockingReasons:
+  - La autorización DEC-CUSTOMER-PROFILE-001-01 no tiene evidencia verificable.
+  - El consumidor Angular, su baseline Git y sus versiones no son verificables en este ejemplo.
+limitations:
+  - La autorización DEC-CUSTOMER-PROFILE-001-01 no está verificada.
+  - No se verificaron consumidor, versiones, baseline Git ni snapshots.
+  - No se implementaron componentes ni pruebas Angular.
+  - No existe evidencia para declarar GENERATED, COMPILED, TESTED o VALIDATED.
