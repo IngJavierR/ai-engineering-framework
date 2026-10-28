@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ingjavierr.github.io/ai-engineering-framework/schemas/frontend-ui-output.v1.schema.json",
+  "title": "frontend-ui-output/v1",
+  "description": "Contrato transversal de salida, trazabilidad y evidencia de una ejecución frontend.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "featureId", "templateStatus", "consumer", "inputManifest", "scopeValidation", "changes", "traceability", "validation", "evidence", "workflowStatus", "limitations"],
+  "properties": {
+    "schemaVersion": {"const": "frontend-ui-output/v1"},
+    "featureId": {"$ref": "#/$defs/featureId"},
+    "templateStatus": {"enum": ["illustrative-not-ready-for-execution", "ready-for-execution"]},
+    "consumer": {"$ref": "#/$defs/consumer"},
+    "inputManifest": {"$ref": "#/$defs/inputManifest"},
+    "scopeValidation": {"$ref": "#/$defs/scopeValidation"},
+    "changes": {"$ref": "#/$defs/changes"},
+    "traceability": {"$ref": "#/$defs/traceability"},
+    "validation": {"$ref": "#/$defs/validation"},
+    "evidence": {"$ref": "#/$defs/evidence"},
+    "workflowStatus": {"enum": ["READY_FOR_IMPLEMENTATION", "READY_FOR_VALIDATION", "BLOCKED"]},
+    "blockingReasons": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nonEmptyText"}, "uniqueItems": true},
+    "limitations": {"type": "array", "items": {"$ref": "#/$defs/nonEmptyText"}, "uniqueItems": true}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"workflowStatus": {"const": "BLOCKED"}}, "required": ["workflowStatus"]},
+      "then": {"required": ["blockingReasons"]}
+    },
+    {
+      "if": {"properties": {"scopeValidation": {"properties": {"result": {"const": "FAIL"}}, "required": ["result"]}}, "required": ["scopeValidation"]},
+      "then": {"properties": {"workflowStatus": {"const": "BLOCKED"}}, "required": ["workflowStatus", "blockingReasons"]}
+    },
+    {
+      "if": {"properties": {"templateStatus": {"const": "ready-for-execution"}}, "required": ["templateStatus"]},
+      "then": {
+        "properties": {
+          "consumer": {"properties": {"verificationStatus": {"const": "verified"}, "commit": {"$ref": "#/$defs/gitCommit"}}},
+          "inputManifest": {"properties": {"status": {"const": "verified"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"validation": {"properties": {"unitTests": {"properties": {"status": {"const": "VALIDATED"}}, "required": ["status"]}}, "required": ["unitTests"]}}, "required": ["validation"]},
+      "then": {
+        "properties": {
+          "scopeValidation": {"properties": {"result": {"const": "PASS"}}},
+          "validation": {
+            "properties": {
+              "build": {"properties": {"status": {"enum": ["COMPILED", "VALIDATED"]}, "exitCode": {"const": 0}}},
+              "typecheck": {"properties": {"status": {"enum": ["COMPILED", "VALIDATED"]}, "exitCode": {"const": 0}}},
+              "coverage": {"properties": {"status": {"enum": ["TESTED", "VALIDATED"]}, "exitCode": {"const": 0}}}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonEmptyText": {"type": "string", "minLength": 1},
+    "featureId": {"type": "string", "pattern": "^FEAT-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+$"},
+    "gitCommit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "hash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "internalPath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?\\[\\]{}])[^/]+(?:/[^/]+)*$"},
+    "evidenceStatus": {"enum": ["GENERATED", "COMPILED", "TESTED", "VALIDATED", "NOT_RUN"]},
+    "consumer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "stack", "commit", "verificationStatus", "reason"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "stack": {"enum": ["angular", "react"]},
+        "commit": {"oneOf": [{"$ref": "#/$defs/gitCommit"}, {"const": "not-verified"}]},
+        "verificationStatus": {"enum": ["verified", "not-verified"]},
+        "reason": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "inputManifest": {"type": "object", "additionalProperties": false, "required": ["path", "status", "reason"], "properties": {"path": {"$ref": "#/$defs/internalPath"}, "status": {"enum": ["verified", "not-verified"]}, "reason": {"$ref": "#/$defs/nonEmptyText"}}},
+    "snapshot": {"type": "object", "additionalProperties": false, "required": ["status", "path"], "properties": {"status": {"$ref": "#/$defs/evidenceStatus"}, "path": {"$ref": "#/$defs/internalPath"}}},
+    "changeSet": {"type": "object", "additionalProperties": false, "required": ["status", "files"], "properties": {"status": {"$ref": "#/$defs/evidenceStatus"}, "files": {"type": "array", "items": {"$ref": "#/$defs/changeFile"}, "uniqueItems": true}}},
+    "changeFile": {"type": "object", "additionalProperties": false, "required": ["path"], "properties": {"path": {"$ref": "#/$defs/internalPath"}, "sha256": {"$ref": "#/$defs/hash"}}},
+    "scopeValidation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baselineCommit", "initialSnapshot", "finalSnapshot", "preExistingChanges", "attributableChanges", "concurrentChanges", "result", "reason"],
+      "properties": {
+        "baselineCommit": {"oneOf": [{"$ref": "#/$defs/gitCommit"}, {"const": "not-verified"}]},
+        "initialSnapshot": {"$ref": "#/$defs/snapshot"}, "finalSnapshot": {"$ref": "#/$defs/snapshot"},
+        "preExistingChanges": {"$ref": "#/$defs/changeSet"}, "attributableChanges": {"$ref": "#/$defs/changeSet"}, "concurrentChanges": {"$ref": "#/$defs/changeSet"},
+        "result": {"enum": ["PASS", "FAIL", "NOT_RUN"]}, "reason": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "changes": {
+      "type": "object", "additionalProperties": false,
+      "required": ["created", "modified", "deleted", "renamed", "typeChanged"],
+      "properties": {
+        "created": {"type": "array", "items": {"$ref": "#/$defs/changeFile"}, "uniqueItems": true},
+        "modified": {"type": "array", "items": {"$ref": "#/$defs/changeFile"}, "uniqueItems": true},
+        "deleted": {"type": "array", "items": {"$ref": "#/$defs/changeFile"}, "uniqueItems": true},
+        "renamed": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"$ref": "#/$defs/internalPath"}, "to": {"$ref": "#/$defs/internalPath"}}}, "uniqueItems": true},
+        "typeChanged": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["path", "fromType", "toType"], "properties": {"path": {"$ref": "#/$defs/internalPath"}, "fromType": {"enum": ["regular-file", "directory", "symlink", "submodule"]}, "toType": {"enum": ["regular-file", "directory", "symlink", "submodule"]}}}, "uniqueItems": true}
+      }
+    },
+    "traceability": {"type": "object", "additionalProperties": false, "required": ["consumer", "status", "entries"], "properties": {"consumer": {"enum": ["angular", "react"]}, "status": {"$ref": "#/$defs/evidenceStatus"}, "entries": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/traceabilityEntry"}, "uniqueItems": true}}},
+    "traceabilityEntry": {"type": "object", "additionalProperties": false, "required": ["requirementId", "conceptualComponentId", "yamlCaseIds", "technicalTestIds", "result", "evidence"], "properties": {"requirementId": {"type": "string", "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "conceptualComponentId": {"type": "string", "pattern": "^CMP-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "yamlCaseIds": {"type": "array", "items": {"type": "string", "pattern": "^UT-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "uniqueItems": true}, "technicalTestIds": {"type": "array", "items": {"$ref": "#/$defs/nonEmptyText"}, "uniqueItems": true}, "result": {"$ref": "#/$defs/evidenceStatus"}, "evidence": {"type": "array", "items": {"$ref": "#/$defs/internalPath"}, "uniqueItems": true}}},
+    "validation": {"type": "object", "additionalProperties": false, "required": ["build", "typecheck", "unitTests", "coverage"], "properties": {"build": {"$ref": "#/$defs/commandValidation"}, "typecheck": {"$ref": "#/$defs/commandValidation"}, "unitTests": {"$ref": "#/$defs/unitTestValidation"}, "coverage": {"$ref": "#/$defs/coverageValidation"}}},
+    "commandValidation": {"type": "object", "additionalProperties": false, "required": ["status", "command", "exitCode", "resultFiles", "reason"], "properties": {"status": {"$ref": "#/$defs/evidenceStatus"}, "command": {"type": ["string", "null"]}, "exitCode": {"type": ["integer", "null"]}, "resultFiles": {"type": "array", "items": {"$ref": "#/$defs/internalPath"}, "uniqueItems": true}, "reason": {"$ref": "#/$defs/nonEmptyText"}}, "allOf": [{"if": {"properties": {"status": {"enum": ["COMPILED", "VALIDATED"]}}, "required": ["status"]}, "then": {"properties": {"command": {"type": "string", "minLength": 1}, "exitCode": {"const": 0}, "resultFiles": {"minItems": 1}}}}, {"if": {"properties": {"status": {"const": "TESTED"}}, "required": ["status"]}, "then": {"properties": {"command": {"type": "string", "minLength": 1}, "exitCode": {"type": "integer", "minimum": 0}, "resultFiles": {"minItems": 1}}}}, {"if": {"properties": {"status": {"const": "NOT_RUN"}}, "required": ["status"]}, "then": {"properties": {"command": {"type": "null"}, "exitCode": {"type": "null"}, "resultFiles": {"maxItems": 0}}}}]},
+    "unitTestValidation": {"type": "object", "additionalProperties": false, "required": ["status", "runner", "command", "exitCode", "resultFiles", "reason"], "properties": {"status": {"$ref": "#/$defs/evidenceStatus"}, "runner": {"type": ["string", "null"]}, "command": {"type": ["string", "null"]}, "exitCode": {"type": ["integer", "null"]}, "resultFiles": {"type": "array", "items": {"$ref": "#/$defs/internalPath"}, "uniqueItems": true}, "reason": {"$ref": "#/$defs/nonEmptyText"}}, "allOf": [{"if": {"properties": {"status": {"const": "VALIDATED"}}, "required": ["status"]}, "then": {"properties": {"runner": {"type": "string", "minLength": 1}, "command": {"type": "string", "minLength": 1}, "exitCode": {"const": 0}, "resultFiles": {"minItems": 1}}}}, {"if": {"properties": {"status": {"const": "TESTED"}}, "required": ["status"]}, "then": {"properties": {"runner": {"type": "string", "minLength": 1}, "command": {"type": "string", "minLength": 1}, "exitCode": {"type": "integer", "minimum": 0}, "resultFiles": {"minItems": 1}}}}, {"if": {"properties": {"status": {"const": "NOT_RUN"}}, "required": ["status"]}, "then": {"properties": {"runner": {"type": "null"}, "command": {"type": "null"}, "exitCode": {"type": "null"}, "resultFiles": {"maxItems": 0}}}}]},
+    "coverageValidation": {"type": "object", "additionalProperties": false, "required": ["status", "command", "exitCode", "metrics", "resultFiles", "reason"], "properties": {"status": {"$ref": "#/$defs/evidenceStatus"}, "command": {"type": ["string", "null"]}, "exitCode": {"type": ["integer", "null"]}, "metrics": {"type": ["object", "null"]}, "resultFiles": {"type": "array", "items": {"$ref": "#/$defs/internalPath"}, "uniqueItems": true}, "reason": {"$ref": "#/$defs/nonEmptyText"}}, "allOf": [{"if": {"properties": {"status": {"enum": ["COMPILED", "VALIDATED"]}}, "required": ["status"]}, "then": {"properties": {"command": {"type": "string", "minLength": 1}, "exitCode": {"const": 0}, "metrics": {"type": "object"}, "resultFiles": {"minItems": 1}}}}, {"if": {"properties": {"status": {"const": "TESTED"}}, "required": ["status"]}, "then": {"properties": {"command": {"type": "string", "minLength": 1}, "exitCode": {"type": "integer", "minimum": 0}, "metrics": {"type": "object"}, "resultFiles": {"minItems": 1}}}}, {"if": {"properties": {"status": {"const": "NOT_RUN"}}, "required": ["status"]}, "then": {"properties": {"command": {"type": "null"}, "exitCode": {"type": "null"}, "metrics": {"type": "null"}, "resultFiles": {"maxItems": 0}}}}]},
+    "evidence": {"type": "object", "additionalProperties": false, "required": ["commands", "files", "contentHashes", "note"], "properties": {"commands": {"type": "array", "items": {"$ref": "#/$defs/nonEmptyText"}, "uniqueItems": true}, "files": {"type": "array", "items": {"$ref": "#/$defs/internalPath"}, "uniqueItems": true}, "contentHashes": {"type": "array", "items": {"$ref": "#/$defs/hash"}, "uniqueItems": true}, "note": {"$ref": "#/$defs/nonEmptyText"}}}
+  }
+}

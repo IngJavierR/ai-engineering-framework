@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ingjavierr.github.io/ai-engineering-framework/schemas/frontend-unit-tests.v1.schema.json",
+  "title": "frontend-unit-tests/v1",
+  "description": "Contrato transversal para casos unitarios de frontend. No modela pruebas E2E, navegador real ni HTTP externo.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "featureId", "cases"],
+  "properties": {
+    "schemaVersion": {"const": "frontend-unit-tests/v1"},
+    "featureId": {"$ref": "#/$defs/featureId"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/testCase"},
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "featureId": {"type": "string", "pattern": "^FEAT-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+$"},
+    "requirementId": {"type": "string", "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"},
+    "componentId": {"type": "string", "pattern": "^CMP-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"},
+    "testId": {"type": "string", "pattern": "^UT-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"},
+    "nonEmptyText": {"type": "string", "minLength": 1},
+    "testCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "requirementIds", "componentIds", "priority", "target", "classification", "preconditions", "mocks", "input", "action", "expected", "async", "isolation"],
+      "properties": {
+        "id": {"$ref": "#/$defs/testId"},
+        "title": {"$ref": "#/$defs/nonEmptyText"},
+        "requirementIds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/requirementId"}, "uniqueItems": true},
+        "componentIds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/componentId"}, "uniqueItems": true},
+        "priority": {"enum": ["critical", "high", "medium", "low"]},
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "conceptualUnitId", "name"],
+          "properties": {
+            "type": {"enum": ["component", "hook", "service", "utility", "validator", "state", "adapter", "other"]},
+            "conceptualUnitId": {"$ref": "#/$defs/componentId"},
+            "name": {"$ref": "#/$defs/nonEmptyText"},
+            "justification": {"$ref": "#/$defs/nonEmptyText"}
+          },
+          "allOf": [{"if": {"properties": {"type": {"const": "other"}}, "required": ["type"]}, "then": {"required": ["justification"]}}]
+        },
+        "classification": {"type": "array", "minItems": 1, "items": {"enum": ["positive", "negative", "boundary", "regression"]}, "uniqueItems": true},
+        "preconditions": {"type": "array", "items": {"$ref": "#/$defs/precondition"}},
+        "mocks": {"type": "array", "items": {"$ref": "#/$defs/mock"}},
+        "input": {"type": "object"},
+        "action": {"type": "object", "additionalProperties": false, "required": ["type", "operation"], "properties": {"type": {"enum": ["render", "invoke", "dispatch", "observe"]}, "operation": {"$ref": "#/$defs/nonEmptyText"}}},
+        "expected": {"type": "object", "minProperties": 1},
+        "async": {"$ref": "#/$defs/async"},
+        "isolation": {"$ref": "#/$defs/isolation"}
+      }
+    },
+    "precondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement"],
+      "properties": {"decisionId": {"type": "string", "pattern": "^DEC-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "statement": {"$ref": "#/$defs/nonEmptyText"}}
+    },
+    "mock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "statement"],
+      "properties": {"kind": {"enum": ["none", "stub", "spy", "fake", "module", "timer", "service"]}, "statement": {"$ref": "#/$defs/nonEmptyText"}}
+    },
+    "async": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isAsync", "timerControl"],
+      "properties": {
+        "isAsync": {"type": "boolean"},
+        "mechanism": {"enum": ["promise", "observable", "callback", "timer", "debounce", "interval"]},
+        "timerControl": {"enum": ["not-applicable", "fake-timers", "framework-test-scheduler", "await-controlled-promise", "manual"]},
+        "completionCondition": {"$ref": "#/$defs/nonEmptyText"},
+        "cleanup": {"$ref": "#/$defs/nonEmptyText"},
+        "manualJustification": {"$ref": "#/$defs/nonEmptyText"}
+      },
+      "allOf": [
+        {"if": {"properties": {"isAsync": {"const": true}}, "required": ["isAsync"]}, "then": {"required": ["mechanism", "completionCondition", "cleanup"], "properties": {"timerControl": {"not": {"const": "not-applicable"}}}}},
+        {"if": {"properties": {"timerControl": {"const": "manual"}}, "required": ["timerControl"]}, "then": {"required": ["manualJustification", "completionCondition"]}}
+      ]
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domSimulationAllowed", "externalHttpAllowed", "realBrowserAllowed", "endToEndNavigationAllowed"],
+      "properties": {
+        "domSimulationAllowed": {"type": "boolean"},
+        "externalHttpAllowed": {"const": false},
+        "realBrowserAllowed": {"const": false},
+        "endToEndNavigationAllowed": {"const": false}
+      }
+    }
+  }
+}

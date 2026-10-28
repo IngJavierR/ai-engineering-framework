@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ingjavierr.github.io/ai-engineering-framework/schemas/frontend-ui-input.v1.schema.json",
+  "title": "frontend-ui-input/v1",
+  "description": "Manifiesto transversal de entradas, consumidor y alcance para una feature frontend.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "featureId", "templateStatus", "title", "consumer", "baseline", "scope", "functionalSpecification", "mockups", "assets", "apiContract", "requirements", "conceptualComponents", "unitTests", "files"],
+  "properties": {
+    "schemaVersion": {"const": "frontend-ui-input/v1"},
+    "featureId": {"$ref": "#/$defs/featureId"},
+    "templateStatus": {"enum": ["illustrative-not-ready-for-execution", "ready-for-execution"]},
+    "title": {"$ref": "#/$defs/nonEmptyText"},
+    "consumer": {"$ref": "#/$defs/consumer"},
+    "baseline": {"$ref": "#/$defs/baseline"},
+    "scope": {"$ref": "#/$defs/scope"},
+    "functionalSpecification": {"$ref": "#/$defs/identifiedFile"},
+    "mockups": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/mockup"}, "uniqueItems": true},
+    "assets": {"type": "array", "items": {"$ref": "#/$defs/asset"}, "uniqueItems": true},
+    "apiContract": {"$ref": "#/$defs/apiContract"},
+    "requirements": {"$ref": "#/$defs/requirements"},
+    "conceptualComponents": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/conceptualComponent"}, "uniqueItems": true},
+    "unitTests": {"$ref": "#/$defs/unitTests"},
+    "files": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/file"}, "uniqueItems": true}
+  },
+  "allOf": [{
+    "if": {"properties": {"templateStatus": {"const": "ready-for-execution"}}, "required": ["templateStatus"]},
+    "then": {
+      "properties": {
+        "consumer": {
+          "properties": {
+            "verificationStatus": {"const": "verified"},
+            "detection": {
+              "properties": {
+                "detectionMethod": {"not": {"const": "not-executed"}},
+                "declaredVersions": {"$ref": "#/$defs/verifiedVersions"},
+                "resolvedVersions": {"$ref": "#/$defs/verifiedVersions"}
+              }
+            }
+          }
+        },
+        "baseline": {"properties": {"verificationStatus": {"const": "verified"}, "commit": {"$ref": "#/$defs/gitCommit"}}},
+        "requirements": {
+          "properties": {
+            "authorizedDecisions": {
+              "items": {
+                "properties": {
+                  "authorizationEvidence": {"$ref": "#/$defs/verifiedAuthorization"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }],
+  "$defs": {
+    "nonEmptyText": {"type": "string", "minLength": 1},
+    "featureId": {"type": "string", "pattern": "^FEAT-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+$"},
+    "id": {"type": "string", "pattern": "^(?:SPEC|SCR|AST|REQ|AMB|INF|DEC|CMP|UT)-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+(?:-[0-9]+)?$"},
+    "sha256": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "gitCommit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "inputPath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?\\[\\]{}])[^/]+(?:/[^/]+)*$"},
+    "internalPath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?\\[\\]{}])[^/]+(?:/[^/]+)*$"},
+    "repositoryRootPath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*//)(?!.*(?:^|/)\\.(?:/|$))(?!.*[*?\\[\\]{}])[^/]+(?:/[^/]+)*$"},
+    "consumer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "stack", "repositoryRoot", "verificationStatus", "detection"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "stack": {"enum": ["angular", "react"]},
+        "repositoryRoot": {"$ref": "#/$defs/repositoryRootPath"},
+        "verificationStatus": {"enum": ["verified", "not-verified"]},
+        "detection": {"$ref": "#/$defs/detection"}
+      }
+    },
+    "detection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manifestPath", "lockfilePath", "declaredVersions", "resolvedVersions", "detectionMethod", "reason"],
+      "properties": {
+        "manifestPath": {"$ref": "#/$defs/internalPath"}, "lockfilePath": {"$ref": "#/$defs/internalPath"},
+        "declaredVersions": {"$ref": "#/$defs/versions"}, "resolvedVersions": {"$ref": "#/$defs/versions"},
+        "detectionMethod": {"type": "string", "minLength": 1}, "reason": {"$ref": "#/$defs/nonEmptyText"}
+      }
+    },
+    "versions": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+    "verifiedVersions": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "pattern": "^(?!not-verified$).+$"}},
+    "baseline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["commit", "requiredInitialWorkingTreeState", "snapshotPath", "verificationStatus", "reason"],
+      "properties": {"commit": {"oneOf": [{"$ref": "#/$defs/gitCommit"}, {"const": "not-verified"}]}, "requiredInitialWorkingTreeState": {"const": "clean"}, "snapshotPath": {"$ref": "#/$defs/internalPath"}, "verificationStatus": {"enum": ["verified", "not-verified"]}, "reason": {"$ref": "#/$defs/nonEmptyText"}}
+    },
+    "scope": {"type": "object", "additionalProperties": false, "required": ["allowedPaths", "protectedPaths", "deletionPolicy"], "properties": {"allowedPaths": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/scopedPath"}, "uniqueItems": true}, "protectedPaths": {"type": "array", "items": {"$ref": "#/$defs/scopedPath"}, "uniqueItems": true}, "deletionPolicy": {"type": "object", "additionalProperties": false, "required": ["allowed"], "properties": {"allowed": {"type": "boolean"}}}}},
+    "scopedPath": {"type": "object", "additionalProperties": false, "required": ["path", "kind"], "properties": {"path": {"$ref": "#/$defs/internalPath"}, "kind": {"enum": ["file", "directory"]}}},
+    "identifiedFile": {"type": "object", "additionalProperties": false, "required": ["id", "path", "sha256"], "properties": {"id": {"$ref": "#/$defs/id"}, "path": {"$ref": "#/$defs/inputPath"}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "file": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"$ref": "#/$defs/inputPath"}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "mockup": {"type": "object", "additionalProperties": false, "required": ["id", "title", "path", "sha256", "conceptualComponentIds"], "properties": {"id": {"type": "string", "pattern": "^SCR-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "title": {"$ref": "#/$defs/nonEmptyText"}, "path": {"$ref": "#/$defs/inputPath"}, "sha256": {"$ref": "#/$defs/sha256"}, "conceptualComponentIds": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^CMP-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "uniqueItems": true}}},
+    "asset": {"type": "object", "additionalProperties": false, "required": ["id", "path", "mediaType", "sha256", "purpose", "altTextSource"], "properties": {"id": {"type": "string", "pattern": "^AST-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "path": {"$ref": "#/$defs/inputPath"}, "mediaType": {"$ref": "#/$defs/nonEmptyText"}, "sha256": {"$ref": "#/$defs/sha256"}, "purpose": {"$ref": "#/$defs/nonEmptyText"}, "altTextSource": {"$ref": "#/$defs/id"}}},
+    "apiContract": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["status", "reason"], "properties": {"status": {"const": "not-applicable"}, "reason": {"$ref": "#/$defs/nonEmptyText"}}}, {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "approvedVersion", "mutableByM2", "usage"], "properties": {"path": {"$ref": "#/$defs/inputPath"}, "sha256": {"$ref": "#/$defs/sha256"}, "approvedVersion": {"$ref": "#/$defs/nonEmptyText"}, "mutableByM2": {"const": false}, "usage": {"const": "reference-only"}}}]},
+    "requirements": {"type": "object", "additionalProperties": false, "required": ["confirmed", "ambiguities", "inferences", "authorizedDecisions"], "properties": {"confirmed": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/statementItem"}, "uniqueItems": true}, "ambiguities": {"type": "array", "items": {"$ref": "#/$defs/ambiguity"}, "uniqueItems": true}, "inferences": {"type": "array", "items": {"$ref": "#/$defs/inference"}, "uniqueItems": true}, "authorizedDecisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}, "uniqueItems": true}}},
+    "statementItem": {"type": "object", "additionalProperties": false, "required": ["id", "sourceId", "statement"], "properties": {"id": {"type": "string", "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "sourceId": {"$ref": "#/$defs/id"}, "statement": {"$ref": "#/$defs/nonEmptyText"}}},
+    "ambiguity": {"type": "object", "additionalProperties": false, "required": ["id", "sourceId", "statement", "blocksRequirementIds"], "properties": {"id": {"type": "string", "pattern": "^AMB-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "sourceId": {"$ref": "#/$defs/id"}, "statement": {"$ref": "#/$defs/nonEmptyText"}, "blocksRequirementIds": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "uniqueItems": true}}},
+    "inference": {"type": "object", "additionalProperties": false, "required": ["id", "sourceId", "statement", "implementationAllowed"], "properties": {"id": {"type": "string", "pattern": "^INF-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "sourceId": {"$ref": "#/$defs/id"}, "statement": {"$ref": "#/$defs/nonEmptyText"}, "implementationAllowed": {"const": false}}},
+    "decision": {"type": "object", "additionalProperties": false, "required": ["id", "resolvesAmbiguityId", "statement", "appliesToRequirementIds", "authorizationEvidence"], "properties": {"id": {"type": "string", "pattern": "^DEC-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "resolvesAmbiguityId": {"type": "string", "pattern": "^AMB-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "statement": {"$ref": "#/$defs/nonEmptyText"}, "appliesToRequirementIds": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "uniqueItems": true}, "authorizationEvidence": {"oneOf": [{"$ref": "#/$defs/unverifiedAuthorization"}, {"$ref": "#/$defs/verifiedAuthorization"}]}}},
+    "unverifiedAuthorization": {"type": "object", "additionalProperties": false, "required": ["status", "type", "reason"], "properties": {"status": {"const": "not-verified"}, "type": {"const": "none"}, "reason": {"$ref": "#/$defs/nonEmptyText"}}},
+    "verifiedAuthorization": {"type": "object", "additionalProperties": false, "required": ["status", "type", "reference", "approvedCommit"], "properties": {"status": {"const": "verified"}, "type": {"enum": ["approved-pull-request", "signed-commit", "corporate-change-record", "approved-tag-or-release"]}, "reference": {"$ref": "#/$defs/nonEmptyText"}, "approvedCommit": {"$ref": "#/$defs/gitCommit"}}},
+    "conceptualComponent": {"type": "object", "additionalProperties": false, "required": ["id", "role", "requirementIds"], "properties": {"id": {"type": "string", "pattern": "^CMP-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "role": {"$ref": "#/$defs/nonEmptyText"}, "requirementIds": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "uniqueItems": true}}},
+    "unitTests": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "caseIds"], "properties": {"path": {"$ref": "#/$defs/inputPath"}, "sha256": {"$ref": "#/$defs/sha256"}, "caseIds": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^UT-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"}, "uniqueItems": true}}}
+  }
+}
