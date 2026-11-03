@@ -19,3 +19,47 @@ framework:
 
   distribution:
     mode: central-versioned
+    inventoryFormat: capability-inventory/v1
+    inventory: |
+      {
+        "java-base": {
+          "dependencies": [],
+          "artifacts": [
+            ".github/instructions/java.instructions.md",
+            ".github/instructions/openapi-ddd.instructions.md",
+            ".github/instructions/liquibase.instructions.md",
+            ".github/skills/openapi-to-ddd/SKILL.md",
+            ".github/skills/openapi-to-ddd/references/ddd-structure.md",
+            ".github/skills/openapi-to-ddd/references/contract-compatibility.md",
+            ".github/skills/liquibase-versioning/SKILL.md",
+            ".github/skills/liquibase-versioning/references/xml-conventions.md"
+          ]
+        },
+        "frontend-ui-design": {
+          "dependencies": [],
+          "artifacts": [
+            ".github/skills/frontend-ui-design/SKILL.md",
+            ".github/skills/frontend-ui-design/references/input-interpretation.md",
+            ".github/skills/frontend-ui-design/references/mockup-conversion.md",
+            ".github/skills/frontend-ui-design/references/traceability-and-scope.md"
+          ]
+        },
+        "angular-ui-implementation": {
+          "dependencies": ["frontend-ui-design"],
+          "artifacts": [
+            ".github/skills/angular-ui-implementation/SKILL.md",
+            ".github/skills/angular-ui-implementation/references/angular-discovery.md",
+            ".github/skills/angular-ui-implementation/references/angular-components.md",
+            ".github/skills/angular-ui-implementation/references/angular-unit-testing.md"
+          ]
+        },
+        "react-ui-implementation": {
+          "dependencies": ["frontend-ui-design"],
+          "artifacts": [
+            ".github/skills/react-ui-implementation/SKILL.md",
+            ".github/skills/react-ui-implementation/references/react-discovery.md",
+            ".github/skills/react-ui-implementation/references/react-components.md",
+            ".github/skills/react-ui-implementation/references/react-unit-testing.md"
+          ]
+        }
+      }

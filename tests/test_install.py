@@ -49,9 +49,14 @@ class InstallerTestCase(unittest.TestCase):
             return ""
         return installer.git_at(installer.ROOT, *args)
 
-    def install(self, dry_run=False, upgrade=False):
+    def install(self, dry_run=False, upgrade=False, capabilities=()):
         with mock.patch.object(installer, "git", self.framework_git):
-            installer.install(self.target, dry_run=dry_run, upgrade=upgrade)
+            installer.install(
+                self.target,
+                dry_run=dry_run,
+                upgrade=upgrade,
+                capabilities=capabilities,
+            )
 
     def lock_path(self):
         return self.target / installer.LOCK_NAME
@@ -146,7 +151,279 @@ class InstallerTestCase(unittest.TestCase):
         self.assert_no_managed_files()
         self.assertFalse(os.path.lexists(self.lock_path()))
 
-    def test_t04_unmanaged_managed_file_conflict_is_rejected(self):
+    def test_t04_capability_resolver_returns_base_and_frontend_profiles(self):
+        cases = {
+            (): (installer.BASE_CAPABILITY, tuple(installer.MANAGED_FILES)),
+            (
+                "frontend-ui-design",
+            ): (
+                "frontend-ui-design",
+                (
+                    *installer.MANAGED_FILES,
+                    ".github/skills/frontend-ui-design/SKILL.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "input-interpretation.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "mockup-conversion.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "traceability-and-scope.md",
+                ),
+            ),
+            (
+                "angular-ui-implementation",
+            ): (
+                "angular-ui-implementation",
+                (
+                    *installer.MANAGED_FILES,
+                    ".github/skills/frontend-ui-design/SKILL.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "input-interpretation.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "mockup-conversion.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "traceability-and-scope.md",
+                    ".github/skills/angular-ui-implementation/SKILL.md",
+                    ".github/skills/angular-ui-implementation/references/"
+                    "angular-discovery.md",
+                    ".github/skills/angular-ui-implementation/references/"
+                    "angular-components.md",
+                    ".github/skills/angular-ui-implementation/references/"
+                    "angular-unit-testing.md",
+                ),
+            ),
+            (
+                "react-ui-implementation",
+            ): (
+                "react-ui-implementation",
+                (
+                    *installer.MANAGED_FILES,
+                    ".github/skills/frontend-ui-design/SKILL.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "input-interpretation.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "mockup-conversion.md",
+                    ".github/skills/frontend-ui-design/references/"
+                    "traceability-and-scope.md",
+                    ".github/skills/react-ui-implementation/SKILL.md",
+                    ".github/skills/react-ui-implementation/references/"
+                    "react-discovery.md",
+                    ".github/skills/react-ui-implementation/references/"
+                    "react-components.md",
+                    ".github/skills/react-ui-implementation/references/"
+                    "react-unit-testing.md",
+                ),
+            ),
+        }
+        for requested, (last_capability, expected_files) in cases.items():
+            with self.subTest(requested=requested):
+                resolved, files = installer.resolve_capabilities(requested)
+                self.assertEqual(len(expected_files), len(files))
+                self.assertEqual(expected_files, files)
+                self.assertEqual(last_capability, resolved[-1])
+
+    def test_t05_capability_resolver_deduplicates_design_dependency(self):
+        resolved, files = installer.resolve_capabilities(
+            ("angular-ui-implementation", "react-ui-implementation")
+        )
+
+        self.assertEqual(
+            (
+                installer.BASE_CAPABILITY,
+                "frontend-ui-design",
+                "angular-ui-implementation",
+                "react-ui-implementation",
+            ),
+            resolved,
+        )
+        self.assertEqual(20, len(files))
+        self.assertEqual(1, files.count(
+            ".github/skills/frontend-ui-design/SKILL.md"
+        ))
+
+    def test_t06_capability_resolver_rejects_invalid_inventories(self):
+        valid = installer.capability_inventory()
+        cases = {
+            "unknown-id": (valid, ("missing",), "Unknown capability"),
+            "duplicate-id": (
+                valid,
+                ("frontend-ui-design", "frontend-ui-design"),
+                "Duplicate requested capability",
+            ),
+            "missing-dependency": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "test": {
+                        "dependencies": ["missing"],
+                        "artifacts": [".github/skills/test/SKILL.md"],
+                    },
+                },
+                ("test",),
+                "unknown dependency",
+            ),
+            "cycle": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "first": {
+                        "dependencies": ["second"],
+                        "artifacts": [".github/skills/first/SKILL.md"],
+                    },
+                    "second": {
+                        "dependencies": ["first"],
+                        "artifacts": [".github/skills/second/SKILL.md"],
+                    },
+                },
+                ("first",),
+                "Capability dependency cycle",
+            ),
+            "duplicate-path": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "test": {
+                        "dependencies": [],
+                        "artifacts": [
+                            ".github/skills/test/SKILL.md",
+                            ".github/skills/test/SKILL.md",
+                        ],
+                    },
+                },
+                ("test",),
+                "Duplicate capability artifact",
+            ),
+            "unsafe-path": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "test": {
+                        "dependencies": [],
+                        "artifacts": [".github/skills/test/SKILL.md", "../bad"],
+                    },
+                },
+                ("test",),
+                "Non-canonical capability artifact",
+            ),
+            "missing-skill-file": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "frontend-ui-design": {
+                        "dependencies": [],
+                        "artifacts": [
+                            ".github/skills/frontend-ui-design/reference.md",
+                        ],
+                    },
+                },
+                ("frontend-ui-design",),
+                "canonical SKILL.md",
+            ),
+            "non-canonical-path": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "test": {
+                        "dependencies": [],
+                        "artifacts": [
+                            ".github/skills/test/SKILL.md",
+                            ".github/skills/test//reference.md",
+                        ],
+                    },
+                },
+                ("test",),
+                "Non-canonical capability artifact",
+            ),
+            "alternate-separator": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "test": {
+                        "dependencies": [],
+                        "artifacts": [
+                            ".github/skills/test/SKILL.md",
+                            ".github\\skills\\test\\reference.md",
+                        ],
+                    },
+                },
+                ("test",),
+                "Unsafe capability artifact",
+            ),
+            "dot-segment": (
+                {
+                    installer.BASE_CAPABILITY: valid[installer.BASE_CAPABILITY],
+                    "test": {
+                        "dependencies": [],
+                        "artifacts": [
+                            ".github/skills/test/SKILL.md",
+                            ".github/skills/test/./reference.md",
+                        ],
+                    },
+                },
+                ("test",),
+                "Non-canonical capability artifact",
+            ),
+        }
+        for label, (inventory, requested, message) in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(ValueError, message):
+                    installer.resolve_capabilities(requested, inventory)
+
+    def test_t07_capability_inventory_contains_real_skill_files(self):
+        installer.validate_capability_inventory()
+
+    def test_t08_frontend_skill_inventory_rejects_invalid_ownership_and_links(self):
+        valid = installer.capability_inventory()
+        frontend = valid["frontend-ui-design"]
+        cases = {
+            "wrong-skill-file": {
+                **frontend,
+                "artifacts": [
+                    ".github/skills/other/SKILL.md",
+                    *frontend["artifacts"][1:],
+                ],
+            },
+            "escaping-artifact": {
+                **frontend,
+                "artifacts": [
+                    *frontend["artifacts"],
+                    ".github/skills/other/reference.md",
+                ],
+            },
+            "missing-reference": {
+                **frontend,
+                "artifacts": frontend["artifacts"][:-1],
+            },
+        }
+        for label, definition in cases.items():
+            with self.subTest(label=label):
+                inventory = {
+                    installer.BASE_CAPABILITY:
+                    valid[installer.BASE_CAPABILITY],
+                    "frontend-ui-design": definition,
+                }
+                with self.assertRaisesRegex(ValueError, "skill|SKILL|inventoried"):
+                    installer.validate_capability_inventory(inventory)
+
+    def test_t09_frontend_skill_inventory_rejects_escaping_reference(self):
+        valid = installer.capability_inventory()
+        with mock.patch.object(
+            installer,
+            "declared_local_references",
+            return_value=("../outside.md",),
+        ):
+            with self.assertRaisesRegex(ValueError, "escapes skill directory"):
+                installer.validate_capability_inventory(valid)
+
+    def test_t10_frontend_install_is_blocked_without_side_effects(self):
+        for dry_run, upgrade in ((False, False), (True, False), (False, True)):
+            with self.subTest(dry_run=dry_run, upgrade=upgrade):
+                with self.assertRaisesRegex(ValueError, "BLOCKED"):
+                    self.install(
+                        dry_run=dry_run,
+                        upgrade=upgrade,
+                        capabilities=("angular-ui-implementation",),
+                    )
+
+                self.assert_no_managed_files()
+                self.assertFalse(os.path.lexists(self.lock_path()))
+                self.assertEqual(
+                    [], list(self.target.glob(".ai-framework-stage-*"))
+                )
+
+    def test_t09_unmanaged_managed_file_conflict_is_rejected(self):
         relative = installer.MANAGED_FILES[1]
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
