@@ -21,6 +21,8 @@ FRAMEWORK_SOURCE = (
     "https://github.com/IngJavierR/ai-engineering-framework"
 )
 LEGACY_VERSION = "0.2.0"
+HISTORICAL_VERSION = "0.3.0"
+LOCK_SCHEMA = "capability-lock/v1"
 
 MANAGED_FILES = [
     ".github/instructions/java.instructions.md",
@@ -340,21 +342,25 @@ def source_path(relative):
     return source
 
 
-def source_manifest():
+def source_manifest(files=MANAGED_FILES):
     manifest = {}
-    for relative in MANAGED_FILES:
+    for relative in files:
         manifest[relative] = sha256(source_path(relative))
     return manifest
 
 
-def build_lock(release, commit, files):
-    return {
+def build_lock(release, commit, files, capabilities=None):
+    lock = {
         "framework": FRAMEWORK_NAME,
         "version": release,
         "source": FRAMEWORK_SOURCE,
         "commit": commit,
         "files": files,
     }
+    if capabilities is not None:
+        lock["schema"] = LOCK_SCHEMA
+        lock["capabilities"] = list(capabilities)
+    return lock
 
 
 def load_lock(lock_path):
@@ -375,36 +381,69 @@ def load_lock(lock_path):
 
 
 def validate_lock(lock):
-    expected_keys = {"framework", "version", "source", "commit", "files"}
-    if set(lock) != expected_keys:
+    legacy_keys = {"framework", "version", "source", "commit", "files"}
+    current_keys = legacy_keys | {"schema", "capabilities"}
+    if set(lock) != legacy_keys and set(lock) != current_keys:
         raise ValueError("Existing framework lock has an unknown schema")
 
     if lock["framework"] != FRAMEWORK_NAME:
         raise ValueError("Existing framework lock has an unknown framework")
-
     if lock["source"] != FRAMEWORK_SOURCE:
         raise ValueError("Existing framework lock has an unknown source")
-
     if not isinstance(lock["version"], str):
         raise ValueError("Existing framework lock has an invalid version")
-
     if not isinstance(lock["commit"], str) or re.fullmatch(
         r"[0-9a-f]{40}", lock["commit"]
     ) is None:
         raise ValueError("Existing framework lock has an invalid commit")
-
     if not isinstance(lock["files"], dict):
         raise ValueError("Existing framework lock has an invalid manifest")
 
+    seen_files = set()
     for relative, digest in lock["files"].items():
-        if not isinstance(relative, str) or not is_sha256(digest):
+        validate_inventory_path(relative)
+        if relative in seen_files or not is_sha256(digest):
             raise ValueError("Existing framework lock has an invalid manifest")
+        seen_files.add(relative)
+
+    if set(lock) == current_keys:
+        if lock["schema"] != LOCK_SCHEMA:
+            raise ValueError("Existing framework lock has an unknown schema")
+        capabilities = lock["capabilities"]
+        if (
+            not isinstance(capabilities, list)
+            or not capabilities
+            or any(
+                not isinstance(capability, str) or not capability
+                for capability in capabilities
+            )
+        ):
+            raise ValueError("Existing framework lock has invalid capabilities")
+        if len(capabilities) != len(set(capabilities)):
+            raise ValueError("Existing framework lock has duplicate capabilities")
+        try:
+            resolved, files = resolve_capabilities(capabilities[1:])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Existing framework lock has invalid capabilities"
+            ) from exc
+        if tuple(capabilities) != resolved or list(lock["files"]) != list(files):
+            raise ValueError("Existing framework lock is internally inconsistent")
 
 
 def is_legacy_lock(lock):
     return (
-        lock["version"] == LEGACY_VERSION
+        set(lock) == {"framework", "version", "source", "commit", "files"}
+        and lock["version"] == LEGACY_VERSION
         and list(lock["files"]) == LEGACY_MANAGED_FILES
+    )
+
+
+def is_historical_lock(lock):
+    return (
+        set(lock) == {"framework", "version", "source", "commit", "files"}
+        and lock["version"] == HISTORICAL_VERSION
+        and list(lock["files"]) == MANAGED_FILES
     )
 
 
@@ -419,33 +458,82 @@ def validate_local_manifest(target, files):
             )
 
 
-def validate_legacy_source(lock):
-    for relative, expected_digest in lock["files"].items():
-        try:
-            content = subprocess.check_output(
-                [
-                    "git",
-                    "-C",
-                    str(ROOT),
-                    "show",
-                    f"{lock['commit']}:{relative}",
-                ]
-            )
-        except subprocess.CalledProcessError as exc:
-            raise ValueError(
-                "Cannot verify legacy source revision; "
-                "perform a manual upgrade"
-            ) from exc
+def historical_file_content(commit, relative):
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", f"{commit}:{relative}"]
+        )
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(
+            "Cannot verify legacy source revision; perform a manual upgrade"
+        ) from exc
 
+
+def historical_inventory(config):
+    match = re.search(
+        r"^    inventory: \|\n(?P<json>(?:^      .*\n?)*)",
+        config,
+        re.MULTILINE,
+    )
+    if not match:
+        raise ValueError("Historical capability inventory is unavailable")
+    try:
+        inventory = json.loads(textwrap.dedent(match.group("json")))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Historical capability inventory is invalid") from exc
+    if not isinstance(inventory, dict):
+        raise ValueError("Historical capability inventory is invalid")
+    return inventory
+
+
+def validate_historical_source(lock):
+    config = historical_file_content(lock["commit"], "framework.yaml").decode(
+        "utf-8"
+    )
+    name_match = re.search(
+        r"^  name:\s*([^\s#]+)", config, re.MULTILINE
+    )
+    version_match = re.search(
+        r"^  version:\s*([^\s#]+)", config, re.MULTILINE
+    )
+    if (
+        name_match is None
+        or name_match.group(1).strip("\"'") != FRAMEWORK_NAME
+        or version_match is None
+        or version_match.group(1).strip("\"'") != lock["version"]
+    ):
+        raise ValueError(
+            "Historical framework identity does not match the lock"
+        )
+
+    for relative, expected_digest in lock["files"].items():
+        content = historical_file_content(lock["commit"], relative)
         if hashlib.sha256(content).hexdigest() != expected_digest:
             raise ValueError(
-                "Legacy lock does not match its source revision; "
-                "perform a manual upgrade"
+                "Historical lock does not match its source revision"
+            )
+
+    if lock.get("schema") == LOCK_SCHEMA:
+        inventory = historical_inventory(config)
+        try:
+            resolved, files = resolve_capabilities(
+                lock["capabilities"][1:], inventory
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Historical lock capabilities are invalid"
+            ) from exc
+        if (
+            tuple(lock["capabilities"]) != resolved
+            or list(lock["files"]) != list(files)
+        ):
+            raise ValueError(
+                "Historical lock does not match its capability inventory"
             )
 
 
-def validate_new_file_conflicts(target, existing_files):
-    for relative in MANAGED_FILES:
+def validate_new_file_conflicts(target, existing_files, files):
+    for relative in files:
         if relative in existing_files:
             continue
         destination = destination_path(target, relative)
@@ -457,7 +545,7 @@ def validate_new_file_conflicts(target, existing_files):
 
 def prepare_staged_files(staging, manifest, lock):
     staged_files = {}
-    for relative in MANAGED_FILES:
+    for relative in manifest:
         source = source_path(relative)
         staged = staging / relative
         staged.parent.mkdir(parents=True, exist_ok=True)
@@ -531,7 +619,7 @@ def replace_staged_files(
     lock_replaced = False
 
     try:
-        for relative in MANAGED_FILES:
+        for relative in staged_files:
             destination = destination_path(target, relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination = destination_path(target, relative)
@@ -595,32 +683,18 @@ def replace_staged_files(
 
 def install(target, dry_run=False, upgrade=False, capabilities=()):
     resolved, resolved_files = resolve_capabilities(capabilities)
-    blocked_frontend = frontend_capabilities(resolved)
-    if blocked_frontend:
-        print(
-            "Resolved frontend capabilities: "
-            + ", ".join(blocked_frontend)
-        )
-        print("Resolved files:")
-        for relative in resolved_files:
-            print(f"  {relative}")
-        raise ValueError(
-            "Frontend profile installation is BLOCKED until B.4B.2"
-        )
-
     target = validate_target(target)
 
     if git("status", "--porcelain"):
-        raise ValueError(
-            "Framework source has uncommitted changes"
-        )
+        raise ValueError("Framework source has uncommitted changes")
 
     commit = git("rev-parse", "HEAD")
     release = version()
-    files = source_manifest()
-    lock = build_lock(release, commit, files)
+    files = source_manifest(resolved_files)
+    lock = build_lock(release, commit, files, resolved)
     lock_path = target / LOCK_NAME
     replace_files = set()
+    scenario = "clean installation"
 
     if path_lexists(lock_path):
         existing = load_lock(lock_path)
@@ -631,38 +705,48 @@ def install(target, dry_run=False, upgrade=False, capabilities=()):
                     "Existing framework lock differs; "
                     "use --upgrade after reviewing the change"
                 )
-            if not is_legacy_lock(existing):
-                raise ValueError(
-                    "Existing framework lock is not a supported legacy "
-                    "format; perform a manual upgrade"
-                )
+            if not (is_legacy_lock(existing) or is_historical_lock(existing)):
+                if existing.get("schema") != LOCK_SCHEMA:
+                    raise ValueError(
+                        "Existing framework lock is not a supported format; "
+                        "perform a manual upgrade"
+                    )
+                existing_capabilities = tuple(existing["capabilities"])
+                if not set(existing_capabilities).issubset(resolved):
+                    raise ValueError(
+                        "Capability removal is BLOCKED during upgrade"
+                    )
+            validate_historical_source(existing)
             validate_local_manifest(target, existing["files"])
-            validate_legacy_source(existing)
-            validate_new_file_conflicts(target, existing["files"])
+            if not set(existing["files"]).issubset(files):
+                raise ValueError(
+                    "Artifact removal is BLOCKED during upgrade"
+                )
+            validate_new_file_conflicts(target, existing["files"], files)
             replace_files = set(existing["files"])
+            scenario = "upgrade"
         else:
             validate_local_manifest(target, existing["files"])
+            scenario = "matching installation"
     else:
         if upgrade:
-            raise ValueError(
-                "Cannot upgrade without an existing framework lock"
-            )
-        validate_new_file_conflicts(target, {})
+            raise ValueError("Cannot upgrade without an existing framework lock")
+        validate_new_file_conflicts(target, {}, files)
 
+    print("Requested capabilities: " + ", ".join(capabilities or ("none",)))
+    print("Resolved capabilities: " + ", ".join(resolved))
+    print("Resolved files:")
+    for relative in resolved_files:
+        print(f"  {relative}")
     print(f"Framework version: {release}")
     print(f"Source commit: {commit}")
     print(f"Destination: {target}")
 
     if dry_run:
-        if lock_path.exists() and not replace_files:
-            print("Already installed: matching lock and files")
-        elif replace_files:
-            print("DRY RUN: legacy installation would be upgraded")
-        else:
-            print("DRY RUN: clean installation would be created")
+        print(f"DRY RUN: {scenario} would be performed")
         return
 
-    if lock_path.exists() and not replace_files:
+    if scenario == "matching installation":
         print("Already installed: matching lock and files")
         return
 
@@ -700,7 +784,7 @@ def main():
     )
     parser.add_argument(
         "--upgrade", action="store_true",
-        help="Upgrade a verified legacy v0.2.0 installation",
+        help="Upgrade a verified v0.2.0, v0.3.0, or capability-lock installation",
     )
     parser.add_argument(
         "--capability",

@@ -50,7 +50,22 @@ class InstallerTestCase(unittest.TestCase):
         return installer.git_at(installer.ROOT, *args)
 
     def install(self, dry_run=False, upgrade=False, capabilities=()):
-        with mock.patch.object(installer, "git", self.framework_git):
+        original_historical_content = installer.historical_file_content
+        current_commit = installer.git_at(installer.ROOT, "rev-parse", "HEAD")
+
+        def historical_content(commit, relative):
+            if commit == current_commit:
+                return self.current_historical_content(commit, relative)
+            return original_historical_content(commit, relative)
+
+        with (
+            mock.patch.object(installer, "git", self.framework_git),
+            mock.patch.object(
+                installer,
+                "historical_file_content",
+                side_effect=historical_content,
+            ),
+        ):
             installer.install(
                 self.target,
                 dry_run=dry_run,
@@ -71,6 +86,39 @@ class InstallerTestCase(unittest.TestCase):
 
     def destination(self, relative):
         return self.target / relative
+
+    def current_historical_content(self, commit, relative):
+        self.assertEqual(
+            installer.git_at(installer.ROOT, "rev-parse", "HEAD"), commit
+        )
+        if relative == "framework.yaml":
+            return (installer.ROOT / relative).read_bytes()
+        return installer.source_path(relative).read_bytes()
+
+    def create_historical_installation(self):
+        try:
+            commit = installer.git_at(
+                installer.ROOT, "rev-parse", "v0.3.0^{commit}"
+            )
+            files = installer.MANAGED_FILES
+            manifest = {}
+            for relative in files:
+                content = subprocess.check_output(
+                    [
+                        "git", "-C", str(installer.ROOT), "show",
+                        f"{commit}:{relative}",
+                    ]
+                )
+                destination = self.destination(relative)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+                manifest[relative] = hashlib.sha256(content).hexdigest()
+        except subprocess.CalledProcessError as exc:
+            self.fail("BLOCKED: v0.3.0 historical fixture is unavailable")
+        self.write_lock(
+            installer.build_lock(installer.HISTORICAL_VERSION, commit, manifest)
+        )
+        return manifest
 
     def create_legacy_installation(self):
         relative = installer.LEGACY_MANAGED_FILES[0]
@@ -407,23 +455,322 @@ class InstallerTestCase(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "escapes skill directory"):
                 installer.validate_capability_inventory(valid)
 
-    def test_t10_frontend_install_is_blocked_without_side_effects(self):
-        for dry_run, upgrade in ((False, False), (True, False), (False, True)):
-            with self.subTest(dry_run=dry_run, upgrade=upgrade):
-                with self.assertRaisesRegex(ValueError, "BLOCKED"):
-                    self.install(
-                        dry_run=dry_run,
-                        upgrade=upgrade,
-                        capabilities=("angular-ui-implementation",),
+    def test_t10_frontend_profiles_install_exact_resolved_manifests(self):
+        cases = {
+            ("frontend-ui-design",): 12,
+            ("angular-ui-implementation",): 16,
+            ("react-ui-implementation",): 16,
+            ("angular-ui-implementation", "react-ui-implementation"): 20,
+        }
+        for capabilities, expected_count in cases.items():
+            with self.subTest(capabilities=capabilities):
+                self.install(capabilities=capabilities)
+                resolved, files = installer.resolve_capabilities(capabilities)
+                lock = self.read_lock()
+                self.assertEqual(expected_count, len(files))
+                self.assertEqual(list(resolved), lock["capabilities"])
+                self.assertEqual(list(files), list(lock["files"]))
+                for relative in files:
+                    self.assertEqual(
+                        installer.sha256(installer.source_path(relative)),
+                        lock["files"][relative],
                     )
+                    self.assertEqual(
+                        installer.source_path(relative).read_bytes(),
+                        self.destination(relative).read_bytes(),
+                    )
+                for path in files:
+                    self.destination(path).unlink()
+                self.lock_path().unlink()
 
-                self.assert_no_managed_files()
-                self.assertFalse(os.path.lexists(self.lock_path()))
+    def test_t11_frontend_dry_run_has_no_side_effects(self):
+        self.install(
+            dry_run=True,
+            capabilities=("angular-ui-implementation",),
+        )
+
+        self.assert_no_managed_files()
+        self.assertFalse(os.path.lexists(self.lock_path()))
+        self.assertEqual([], list(self.target.glob(".ai-framework-stage-*")))
+
+    def test_t12_frontend_reinstall_preserves_timestamps(self):
+        capabilities = ("angular-ui-implementation",)
+        self.install(capabilities=capabilities)
+        _, files = installer.resolve_capabilities(capabilities)
+        paths = [self.destination(relative) for relative in files]
+        paths.append(self.lock_path())
+        before = {
+            path: (path.read_bytes(), path.stat().st_mtime_ns) for path in paths
+        }
+
+        self.install(capabilities=capabilities)
+
+        self.assertEqual(
+            before,
+            {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in paths},
+        )
+
+    def test_t13_v030_upgrade_supports_base_and_frontend_addition(self):
+        self.create_historical_installation()
+        self.install(upgrade=True, capabilities=("angular-ui-implementation",))
+
+        resolved, files = installer.resolve_capabilities(
+            ("angular-ui-implementation",)
+        )
+        lock = self.read_lock()
+        self.assertEqual(list(resolved), lock["capabilities"])
+        self.assertEqual(list(files), list(lock["files"]))
+        self.assertEqual(16, len(files))
+
+    def test_t14_v030_upgrade_supports_base_profile(self):
+        self.create_historical_installation()
+        self.install(upgrade=True)
+
+        lock = self.read_lock()
+        self.assertEqual([installer.BASE_CAPABILITY], lock["capabilities"])
+        self.assertEqual(installer.MANAGED_FILES, list(lock["files"]))
+
+    def test_t15_capability_change_requires_upgrade_and_cannot_remove(self):
+        self.install(capabilities=("angular-ui-implementation",))
+        original_lock = self.lock_path().read_bytes()
+        with self.assertRaisesRegex(ValueError, "use --upgrade"):
+            self.install(capabilities=("angular-ui-implementation", "react-ui-implementation"))
+        with self.assertRaisesRegex(ValueError, "Capability removal is BLOCKED"):
+            self.install(upgrade=True)
+        self.assertEqual(original_lock, self.lock_path().read_bytes())
+
+    def test_t16_lock_schema_and_historical_integrity_are_rejected(self):
+        self.create_historical_installation()
+        historical_lock = self.read_lock()
+        historical_lock["files"].pop(next(iter(historical_lock["files"])))
+        self.write_lock(historical_lock)
+        with self.assertRaisesRegex(ValueError, "supported format"):
+            self.install(upgrade=True)
+
+        self.lock_path().unlink()
+        self.create_historical_installation()
+        historical_lock = self.read_lock()
+        historical_lock["commit"] = "f" * 40
+        self.write_lock(historical_lock)
+        with self.assertRaisesRegex(ValueError, "Cannot verify legacy source"):
+            self.install(upgrade=True)
+
+        self.lock_path().unlink()
+        for relative in installer.MANAGED_FILES:
+            self.destination(relative).unlink()
+        self.install()
+        current_lock = self.read_lock()
+        current_lock["capabilities"].append("react-ui-implementation")
+        self.write_lock(current_lock)
+        with self.assertRaisesRegex(ValueError, "invalid capabilities|inconsistent"):
+            self.install()
+
+    def test_t17_current_lock_historical_integrity_and_capabilities_are_verified(self):
+        self.install(capabilities=("angular-ui-implementation",))
+        original_lock = self.lock_path().read_bytes()
+        original_reference = self.destination(
+            ".github/skills/frontend-ui-design/references/"
+            "input-interpretation.md"
+        ).read_bytes()
+        cases = {
+            "digest": lambda lock: lock["files"].update({
+                ".github/skills/frontend-ui-design/references/"
+                "input-interpretation.md": hashlib.sha256(
+                    b"local lock digest match"
+                ).hexdigest(),
+            }),
+            "commit": lambda lock: lock.update({"commit": "f" * 40}),
+            "version": lambda lock: lock.update({"version": "9.9.9"}),
+            "missing-artifact": lambda lock: lock["files"].update({
+                ".github/skills/missing/SKILL.md": "a" * 64,
+            }),
+            "capabilities": lambda lock: lock.update({
+                "capabilities": [installer.BASE_CAPABILITY],
+            }),
+        }
+        for label, mutate in cases.items():
+            with self.subTest(label=label):
+                lock = json.loads(original_lock)
+                mutate(lock)
+                self.write_lock(lock)
+                if label == "digest":
+                    altered_content = b"local lock digest match"
+                    altered_file = self.destination(
+                        ".github/skills/frontend-ui-design/references/"
+                        "input-interpretation.md"
+                    )
+                    altered_file.write_bytes(altered_content)
+                    self.assertEqual(
+                        hashlib.sha256(altered_content).hexdigest(),
+                        lock["files"][
+                            ".github/skills/frontend-ui-design/references/"
+                            "input-interpretation.md"
+                        ],
+                    )
+                with self.assertRaises(ValueError):
+                    self.install(
+                        upgrade=True,
+                        capabilities=(
+                            "angular-ui-implementation",
+                            "react-ui-implementation",
+                        ),
+                    )
                 self.assertEqual(
-                    [], list(self.target.glob(".ai-framework-stage-*"))
+                    json.dumps(lock, indent=2).encode() + b"\n",
+                    self.lock_path().read_bytes(),
                 )
+                if label == "digest":
+                    self.assertEqual(
+                        b"local lock digest match",
+                        self.destination(
+                            ".github/skills/frontend-ui-design/references/"
+                            "input-interpretation.md"
+                        ).read_bytes(),
+                    )
+                    self.assertEqual(
+                        hashlib.sha256(
+                            self.destination(
+                                ".github/skills/frontend-ui-design/references/"
+                                "input-interpretation.md"
+                            ).read_bytes()
+                        ).hexdigest(),
+                        lock["files"][
+                            ".github/skills/frontend-ui-design/references/"
+                            "input-interpretation.md"
+                        ],
+                    )
+                    self.destination(
+                        ".github/skills/frontend-ui-design/references/"
+                        "input-interpretation.md"
+                    ).write_bytes(original_reference)
+        self.lock_path().write_bytes(original_lock)
 
-    def test_t09_unmanaged_managed_file_conflict_is_rejected(self):
+    def test_t18_current_lock_capability_types_reject_without_side_effects(self):
+        self.install()
+        original_lock = self.lock_path().read_bytes()
+        cases = (["java-base", ["react-ui-implementation"]],
+                 ["java-base", {"id": "react-ui-implementation"}],
+                 ["java-base", None], ["java-base", 1],
+                 ["java-base", "java-base"],
+                 ["java-base", "unknown"])
+        for capabilities in cases:
+            with self.subTest(capabilities=capabilities):
+                lock = json.loads(original_lock)
+                lock["capabilities"] = capabilities
+                self.write_lock(lock)
+                with self.assertRaises(ValueError):
+                    self.install()
+                self.assertEqual(
+                    json.dumps(lock, indent=2).encode() + b"\n",
+                    self.lock_path().read_bytes(),
+                )
+        self.lock_path().write_bytes(original_lock)
+
+    def test_t19_historical_framework_identity_is_rejected(self):
+        self.create_historical_installation()
+        original_lock = self.lock_path().read_bytes()
+        original_historical_content = installer.historical_file_content
+        historical_lock = self.read_lock()
+
+        def altered_framework_config(commit, relative):
+            content = original_historical_content(commit, relative)
+            if (
+                commit == historical_lock["commit"]
+                and relative == "framework.yaml"
+            ):
+                return content.replace(
+                    b"name: ai-engineering-framework",
+                    b"name: different-framework",
+                )
+            return content
+
+        with mock.patch.object(
+            installer,
+            "historical_file_content",
+            side_effect=altered_framework_config,
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "Historical framework identity"
+            ):
+                self.install(upgrade=True)
+
+        self.assertEqual(original_lock, self.lock_path().read_bytes())
+
+    def test_t20_frontend_publication_failure_rolls_back(self):
+        real_replace = installer.os.replace
+        calls = 0
+
+        def fail_second_replace(source, destination):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("injected frontend replacement failure")
+            return real_replace(source, destination)
+
+        with mock.patch.object(
+            installer.os, "replace", side_effect=fail_second_replace
+        ):
+            with self.assertRaisesRegex(OSError, "frontend replacement"):
+                self.install(capabilities=("angular-ui-implementation",))
+
+        _, files = installer.resolve_capabilities(("angular-ui-implementation",))
+        for relative in files:
+            self.assertFalse(os.path.lexists(self.destination(relative)))
+        self.assertFalse(os.path.lexists(self.lock_path()))
+
+    def test_t21_modified_frontend_file_and_upgrade_conflict_are_rejected(self):
+        self.install(capabilities=("angular-ui-implementation",))
+        design_reference = self.destination(
+            ".github/skills/frontend-ui-design/references/"
+            "input-interpretation.md"
+        )
+        original_lock = self.lock_path().read_bytes()
+        design_reference.write_text("local modification", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "modified locally"):
+            self.install(
+                upgrade=True,
+                capabilities=(
+                    "angular-ui-implementation", "react-ui-implementation"
+                ),
+            )
+        self.assertEqual(original_lock, self.lock_path().read_bytes())
+
+        design_reference.write_bytes(
+            installer.source_path(
+                ".github/skills/frontend-ui-design/references/"
+                "input-interpretation.md"
+            ).read_bytes()
+        )
+        self.write_lock(
+            installer.build_lock(
+                installer.version(),
+                installer.git_at(installer.ROOT, "rev-parse", "HEAD"),
+                installer.source_manifest(
+                    installer.resolve_capabilities(
+                        ("angular-ui-implementation",)
+                    )[1]
+                ),
+                installer.resolve_capabilities(
+                    ("angular-ui-implementation",)
+                )[0],
+            )
+        )
+        conflict = self.destination(
+            ".github/skills/react-ui-implementation/SKILL.md"
+        )
+        conflict.parent.mkdir(parents=True, exist_ok=True)
+        conflict.write_text("consumer file", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "unmanaged destination"):
+            self.install(
+                upgrade=True,
+                capabilities=(
+                    "angular-ui-implementation", "react-ui-implementation"
+                ),
+            )
+        self.assertEqual("consumer file", conflict.read_text(encoding="utf-8"))
+        self.assertEqual(original_lock, self.lock_path().read_bytes())
+
+    def test_t22_unmanaged_managed_file_conflict_is_rejected(self):
         relative = installer.MANAGED_FILES[1]
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -435,7 +782,7 @@ class InstallerTestCase(unittest.TestCase):
         self.assertEqual("consumer content", destination.read_text(encoding="utf-8"))
         self.assertFalse(os.path.lexists(self.lock_path()))
 
-    def test_t05_invalid_unknown_corrupt_and_tampered_locks_are_rejected(self):
+    def test_t23_invalid_unknown_corrupt_and_tampered_locks_are_rejected(self):
         cases = {
             "corrupt": "{not json",
             "unknown": json.dumps(
@@ -468,7 +815,7 @@ class InstallerTestCase(unittest.TestCase):
                 self.assert_no_managed_files()
                 self.lock_path().unlink()
 
-    def test_t06_locally_modified_managed_file_is_rejected(self):
+    def test_t24_locally_modified_managed_file_is_rejected(self):
         self.install()
         destination = self.destination(installer.MANAGED_FILES[0])
         original_lock = self.lock_path().read_bytes()
@@ -480,7 +827,7 @@ class InstallerTestCase(unittest.TestCase):
         self.assertEqual("consumer modification", destination.read_text(encoding="utf-8"))
         self.assertEqual(original_lock, self.lock_path().read_bytes())
 
-    def test_t07_verified_v020_upgrade_preserves_consumer_files(self):
+    def test_t25_verified_v020_upgrade_preserves_consumer_files(self):
         legacy_relative, legacy_content = self.create_legacy_installation()
         consumer_file = self.target / "consumer-notes.txt"
         consumer_file.write_text("preserve me", encoding="utf-8")
@@ -507,7 +854,7 @@ class InstallerTestCase(unittest.TestCase):
                 destination.read_bytes(),
             )
             self.assertEqual(installer.sha256(destination), lock["files"][relative])
-    def test_t08_upgrade_rejects_unverifiable_historical_revision(self):
+    def test_t26_upgrade_rejects_unverifiable_historical_revision(self):
         legacy_relative, legacy_content = self.create_legacy_installation()
         legacy_lock = self.read_lock()
         legacy_lock["commit"] = "f" * 40
@@ -523,7 +870,7 @@ class InstallerTestCase(unittest.TestCase):
         for relative in installer.MANAGED_FILES[1:]:
             self.assertFalse(os.path.lexists(self.destination(relative)))
 
-    def test_t09_managed_path_symlinks_and_broken_symlinks_are_rejected(self):
+    def test_t27_managed_path_symlinks_and_broken_symlinks_are_rejected(self):
         relative = installer.MANAGED_FILES[0]
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -556,7 +903,7 @@ class InstallerTestCase(unittest.TestCase):
             self.assertEqual([], list(outside_directory.iterdir()))
             self.assertFalse(os.path.lexists(self.lock_path()))
 
-    def test_t10_target_with_symlink_ancestor_is_rejected(self):
+    def test_t28_target_with_symlink_ancestor_is_rejected(self):
         real_parent = self.temporary_root / "real-parent"
         real_parent.mkdir()
         linked_parent = self.temporary_root / "linked-parent"
@@ -568,7 +915,7 @@ class InstallerTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must not contain a symlink"):
             installer.validate_target(linked_target)
 
-    def test_t11_file_replace_failure_rolls_back_created_files(self):
+    def test_t29_file_replace_failure_rolls_back_created_files(self):
         real_replace = installer.os.replace
         calls = 0
 
@@ -588,7 +935,7 @@ class InstallerTestCase(unittest.TestCase):
         self.assert_no_managed_files()
         self.assertFalse(os.path.lexists(self.lock_path()))
 
-    def test_t12_lock_publication_failure_rolls_back_created_files(self):
+    def test_t30_lock_publication_failure_rolls_back_created_files(self):
         real_replace = installer.os.replace
 
         def fail_lock_publication(source, destination):
@@ -605,7 +952,7 @@ class InstallerTestCase(unittest.TestCase):
         self.assert_no_managed_files()
         self.assertFalse(os.path.lexists(self.lock_path()))
 
-    def test_t13_incomplete_rollback_preserves_backups_and_cause(self):
+    def test_t31_incomplete_rollback_preserves_backups_and_cause(self):
         relative = installer.MANAGED_FILES[0]
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -647,7 +994,7 @@ class InstallerTestCase(unittest.TestCase):
         self.assertFalse(destination.exists())
         self.assertEqual("legacy lock", self.lock_path().read_text(encoding="utf-8"))
 
-    def test_t14_cleanup_failure_reports_completed_install_and_keeps_backup(self):
+    def test_t32_cleanup_failure_reports_completed_install_and_keeps_backup(self):
         relative = installer.MANAGED_FILES[0]
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
