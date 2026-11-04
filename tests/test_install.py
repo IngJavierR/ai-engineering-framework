@@ -158,6 +158,27 @@ class InstallerTestCase(unittest.TestCase):
                 os.path.lexists(self.destination(relative)), relative
             )
 
+    def real_source_clone(self):
+        source = self.temporary_root / "framework-source"
+        subprocess.run(
+            ["git", "clone", "--quiet", str(REPOSITORY_ROOT), str(source)],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(source), "checkout", "--quiet", "59a4210"],
+            check=True,
+        )
+        return source
+
+    def run_real_installer(self, source, target, *args):
+        return subprocess.run(
+            [sys.executable, str(source / "tools" / "install.py"),
+             "--target", str(target), *args],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
     def test_t01_clean_install_creates_manifest_and_real_hashes(self):
         self.install()
 
@@ -1036,6 +1057,224 @@ class InstallerTestCase(unittest.TestCase):
             destination.with_name(
                 f".{destination.name}.ai-framework-backup"
             ).exists()
+        )
+
+    def test_t33_real_git_profiles_and_idempotency(self):
+        source = self.real_source_clone()
+        cases = {
+            (): 8,
+            ("frontend-ui-design",): 12,
+            ("angular-ui-implementation",): 16,
+            ("react-ui-implementation",): 16,
+            ("angular-ui-implementation", "react-ui-implementation"): 20,
+        }
+        for index, (capabilities, expected_count) in enumerate(cases.items()):
+            with self.subTest(capabilities=capabilities):
+                target = self.temporary_root / f"real-consumer-{index}"
+                target.mkdir()
+                self.run_git("init", target)
+                args = []
+                for capability in capabilities:
+                    args.extend(("--capability", capability))
+                result = self.run_real_installer(source, target, *args)
+                self.assertEqual(0, result.returncode, result.stderr)
+
+                lock_path = target / installer.LOCK_NAME
+                lock = json.loads(lock_path.read_text(encoding="utf-8"))
+                self.assertEqual("0.4.0", lock["version"])
+                self.assertEqual(
+                    subprocess.check_output(
+                        ["git", "-C", str(source), "rev-parse", "HEAD"],
+                        text=True,
+                    ).strip(),
+                    lock["commit"],
+                )
+                self.assertEqual(expected_count, len(lock["files"]))
+                for relative, digest in lock["files"].items():
+                    destination = target / relative
+                    source_file = source / relative
+                    self.assertEqual(source_file.read_bytes(), destination.read_bytes())
+                    self.assertEqual(hashlib.sha256(destination.read_bytes()).hexdigest(), digest)
+                for excluded in (
+                    "tools/validate_frontend_contracts.py",
+                    "tools/validate_frontend_workflow.py",
+                    "docs/m2/schemas/frontend-ui-input.v1.schema.json",
+                ):
+                    self.assertFalse((target / excluded).exists(), excluded)
+                before = {
+                    path: (path.read_bytes(), path.stat().st_mtime_ns)
+                    for path in [
+                        *(target / relative for relative in lock["files"]),
+                        lock_path,
+                    ]
+                }
+                repeated = self.run_real_installer(source, target, *args)
+                self.assertEqual(0, repeated.returncode, repeated.stderr)
+                self.assertEqual(
+                    before,
+                    {
+                        path: (path.read_bytes(), path.stat().st_mtime_ns)
+                        for path in before
+                    },
+                )
+
+    def test_t34_real_git_dry_run_and_v030_upgrades(self):
+        source = self.real_source_clone()
+        dry_target = self.temporary_root / "real-dry-run"
+        dry_target.mkdir()
+        self.run_git("init", dry_target)
+        dry_run = self.run_real_installer(
+            source, dry_target, "--capability", "angular-ui-implementation",
+            "--dry-run",
+        )
+        self.assertEqual(0, dry_run.returncode, dry_run.stderr)
+        self.assertFalse(os.path.lexists(dry_target / installer.LOCK_NAME))
+        self.assertEqual([], list(dry_target.glob(".ai-framework-stage-*")))
+
+        v030_commit = subprocess.check_output(
+            ["git", "-C", str(source), "rev-parse", "v0.3.0^{commit}"],
+            text=True,
+        ).strip()
+        for suffix, capabilities, expected_count in (
+            ("base", (), 8),
+            ("angular", ("angular-ui-implementation",), 16),
+        ):
+            with self.subTest(profile=suffix):
+                target = self.temporary_root / f"real-v030-{suffix}"
+                target.mkdir()
+                self.run_git("init", target)
+                manifest = {}
+                for relative in installer.MANAGED_FILES:
+                    content = subprocess.check_output(
+                        ["git", "-C", str(source), "show",
+                         f"{v030_commit}:{relative}"],
+                    )
+                    destination = target / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(content)
+                    manifest[relative] = hashlib.sha256(content).hexdigest()
+                (target / installer.LOCK_NAME).write_text(
+                    json.dumps(
+                        installer.build_lock(
+                            installer.HISTORICAL_VERSION,
+                            v030_commit,
+                            manifest,
+                        ),
+                        indent=2,
+                    ) + "\n",
+                    encoding="utf-8",
+                )
+                args = ["--upgrade"]
+                for capability in capabilities:
+                    args.extend(("--capability", capability))
+                upgraded = self.run_real_installer(source, target, *args)
+                self.assertEqual(0, upgraded.returncode, upgraded.stderr)
+                lock = json.loads(
+                    (target / installer.LOCK_NAME).read_text(encoding="utf-8")
+                )
+                self.assertEqual("capability-lock/v1", lock["schema"])
+                self.assertEqual(expected_count, len(lock["files"]))
+
+    def test_t35_real_git_additive_profile_upgrade(self):
+        source = self.real_source_clone()
+        target = self.temporary_root / "real-additive-upgrade"
+        target.mkdir()
+        self.run_git("init", target)
+        consumer_file = target / "consumer-notes.txt"
+        consumer_file.write_text("preserve me", encoding="utf-8")
+        angular_args = ("--capability", "angular-ui-implementation")
+        initial = self.run_real_installer(source, target, *angular_args)
+        self.assertEqual(0, initial.returncode, initial.stderr)
+
+        lock_path = target / installer.LOCK_NAME
+        initial_lock = json.loads(lock_path.read_text(encoding="utf-8"))
+        self.assertEqual("capability-lock/v1", initial_lock["schema"])
+        self.assertEqual("0.4.0", initial_lock["version"])
+        self.assertEqual(
+            subprocess.check_output(
+                ["git", "-C", str(source), "rev-parse", "HEAD"],
+                text=True,
+            ).strip(),
+            initial_lock["commit"],
+        )
+        self.assertEqual(
+            [
+                "java-base",
+                "frontend-ui-design",
+                "angular-ui-implementation",
+            ],
+            initial_lock["capabilities"],
+        )
+        self.assertEqual(16, len(initial_lock["files"]))
+        before = {
+            path: (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in [
+                *(target / relative for relative in initial_lock["files"]),
+                lock_path,
+            ]
+        }
+
+        additive_args = (
+            "--capability", "angular-ui-implementation",
+            "--capability", "react-ui-implementation",
+        )
+        rejected = self.run_real_installer(source, target, *additive_args)
+        self.assertNotEqual(0, rejected.returncode)
+        self.assertIn("use --upgrade", rejected.stderr)
+        self.assertEqual(
+            before,
+            {
+                path: (path.read_bytes(), path.stat().st_mtime_ns)
+                for path in before
+            },
+        )
+
+        upgraded = self.run_real_installer(
+            source, target, *additive_args, "--upgrade"
+        )
+        self.assertEqual(0, upgraded.returncode, upgraded.stderr)
+        self.assertIn("Upgrade completed", upgraded.stdout)
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+        self.assertEqual(20, len(lock["files"]))
+        self.assertEqual(
+            [
+                "java-base",
+                "frontend-ui-design",
+                "angular-ui-implementation",
+                "react-ui-implementation",
+            ],
+            lock["capabilities"],
+        )
+        self.assertEqual(
+            1,
+            list(lock["files"]).count(
+                ".github/skills/frontend-ui-design/SKILL.md"
+            ),
+        )
+        self.assertEqual("preserve me", consumer_file.read_text(encoding="utf-8"))
+        for relative, digest in lock["files"].items():
+            destination = target / relative
+            source_file = source / relative
+            self.assertEqual(source_file.read_bytes(), destination.read_bytes())
+            self.assertEqual(hashlib.sha256(destination.read_bytes()).hexdigest(), digest)
+        self.assertEqual([], list(target.glob(".ai-framework-stage-*")))
+        self.assertEqual([], list(target.rglob("*.ai-framework-backup")))
+
+        upgraded_before = {
+            path: (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in [
+                *(target / relative for relative in lock["files"]),
+                lock_path,
+            ]
+        }
+        repeated = self.run_real_installer(source, target, *additive_args)
+        self.assertEqual(0, repeated.returncode, repeated.stderr)
+        self.assertEqual(
+            upgraded_before,
+            {
+                path: (path.read_bytes(), path.stat().st_mtime_ns)
+                for path in upgraded_before
+            },
         )
 
 

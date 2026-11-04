@@ -4,10 +4,34 @@ Los cambios se registran por versión preparada para publicación o
 publicada. Una entrada sin fecha no implica que exista un tag, release
 ni artefacto publicado.
 
-## [0.3.0] - Preparada para publicación
+## [0.4.0] - Experimental, en preparación
 
 No existe todavía un tag, release ni artefacto publicado para esta
 versión.
+
+### Distribución por capacidades
+
+- Java base permanece obligatorio con ocho archivos gestionados.
+- `frontend-ui-design` se instala solo mediante selección explícita.
+- `angular-ui-implementation` y `react-ui-implementation` resuelven la
+  dependencia compartida `frontend-ui-design` una sola vez.
+- Los perfiles resueltos gestionan 8, 12, 16, 16 o 20 archivos para base,
+  diseño, Angular, React y Angular+React, respectivamente.
+
+### Lock e integridad
+
+- Nuevo lock `capability-lock/v1` con capacidades resueltas deterministas,
+  commit de origen y hashes SHA-256 de cada artefacto.
+- Reinstalación idempotente y upgrades explícitos, aditivos y verificables.
+- Compatibilidad de upgrade verificable desde locks históricos `v0.2.0` y
+  `v0.3.0`, junto con verificación del commit, identidad histórica,
+  inventario, manifest y contenido de artefactos.
+- Protección contra modificaciones locales, conflictos no gestionados,
+  symlinks, rutas inseguras y eliminaciones implícitas.
+
+## [0.3.0] - Publicada
+
+El tag `v0.3.0` existe y permanece inmutable.
 
 ### Instrucciones y skills
 

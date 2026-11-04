@@ -12,8 +12,11 @@ y clientes.
 
 ## Estado
 
-Versión: 0.3.0
-Estado: Experimental, preparada para publicación.
+Versión de trabajo: 0.4.0
+Estado: Experimental. No existe un tag, release ni artefacto publicado para
+esta versión.
+
+La release `v0.3.0` permanece inmutable.
 
 ## Componentes
 
@@ -85,64 +88,121 @@ generales. `automatedQualityGates` permanece en `false`.
 ## Distribución
 
 El instalador requiere un repositorio Git destino y una fuente del
-framework sin cambios pendientes. Registra `.ai-framework.lock.json`
-con versión, commit de origen y hashes SHA-256 calculados desde los
-archivos reales.
+framework sin cambios pendientes. Java base se instala siempre y las
+capacidades frontend son opt-in explícito. No se infiere el stack desde
+los archivos del consumidor.
+
+### Capacidades y dependencias
+
+| Capacidad solicitada | Capacidades resueltas | Archivos gestionados |
+| --- | --- | ---: |
+| Ninguna | `java-base` | 8 |
+| `frontend-ui-design` | `java-base`, `frontend-ui-design` | 12 |
+| `angular-ui-implementation` | `java-base`, `frontend-ui-design`, `angular-ui-implementation` | 16 |
+| `react-ui-implementation` | `java-base`, `frontend-ui-design`, `react-ui-implementation` | 16 |
+| Angular y React | `java-base`, `frontend-ui-design`, Angular, React | 20 |
+
+`angular-ui-implementation` y `react-ui-implementation` dependen de
+`frontend-ui-design`; al seleccionar ambas, la skill de diseño compartida
+se deduplica. Cada skill y cada referencia se copia por archivo declarado,
+sin copia recursiva de directorios.
 
 ### Instalación limpia y dry-run
 
 ```bash
+# Java base por defecto
+python3 tools/install.py --target ../consumer-project
+
+# Solo planificación frontend compartida
 python3 tools/install.py \
   --target ../consumer-project \
-  --dry-run
+  --capability frontend-ui-design
 
+# Angular incluye frontend-ui-design
 python3 tools/install.py \
-  --target ../consumer-project
+  --target ../consumer-project \
+  --capability angular-ui-implementation
+
+# React incluye frontend-ui-design
+python3 tools/install.py \
+  --target ../consumer-project \
+  --capability react-ui-implementation
+
+# Angular y React comparten una única instalación de diseño
+python3 tools/install.py \
+  --target ../consumer-project \
+  --capability angular-ui-implementation \
+  --capability react-ui-implementation
+
+# La misma resolución, sin escribir archivos
+python3 tools/install.py \
+  --target ../consumer-project \
+  --capability angular-ui-implementation \
+  --dry-run
 ```
 
-El `dry-run` valida el escenario sin escribir archivos. Una instalación
-limpia rechaza cualquier archivo ya existente en una ruta gestionada.
+El `dry-run` resuelve capacidades y valida las precondiciones del mismo
+modo que la instalación, pero no crea archivos, lock, staging ni respaldos.
+Una instalación limpia rechaza cualquier archivo preexistente en una ruta
+gestionada.
 
-### Repetición idempotente
+### Lock, reinstalación y upgrade
 
-Ejecutar nuevamente el mismo comando solo reconoce la instalación si
-el lock y los hashes de todos los archivos gestionados coinciden. No
-reescribe archivos ni lock en ese caso.
+La versión experimental 0.4.0 registra `.ai-framework.lock.json` con el
+schema `capability-lock/v1`, identidad del framework, versión, URL de fuente,
+commit, lista determinista de capacidades resueltas y hashes SHA-256 por
+artefacto.
 
-### Upgrade explícito desde v0.2.0
+Una reinstalación con el mismo commit, versión, capacidades y hashes valida
+la instalación sin reescribir archivos ni lock. Un cambio de capacidades
+requiere `--upgrade`:
 
 ```bash
 python3 tools/install.py \
   --target ../consumer-project \
+  --capability angular-ui-implementation \
+  --capability react-ui-implementation \
   --upgrade \
   --dry-run
 
 python3 tools/install.py \
   --target ../consumer-project \
+  --capability angular-ui-implementation \
+  --capability react-ui-implementation \
   --upgrade
 ```
 
-El upgrade no es automático. Solo admite un lock `v0.2.0` verificable:
-el manifest histórico debe tener el formato esperado, el archivo Java
-previamente gestionado debe conservar su hash local y ese hash debe
-coincidir con el contenido del commit de origen registrado. Si la
-revisión histórica no puede verificarse, el lock es corrupto o el
-archivo fue modificado localmente, el instalador se detiene sin hacer
-cambios y se requiere una actualización manual.
+Los upgrades son aditivos: no se permiten eliminaciones implícitas de
+capacidades ni artefactos gestionados. El instalador mantiene compatibilidad
+verificable con locks históricos `v0.2.0` y `v0.3.0`. Antes de un upgrade
+verifica el commit registrado, la identidad y versión de su `framework.yaml`,
+el manifest, las capacidades cuando aplica y los hashes históricos y locales.
+Si el commit histórico no está disponible, el lock es incoherente, un archivo
+fue modificado localmente o existe un nuevo archivo no gestionado en conflicto,
+se detiene sin escribir y debe hacerse una actualización manual.
 
-### Conflictos e integridad
+### Conflictos, seguridad y recuperación
 
-El instalador no sobrescribe archivos propios del consumidor. Rechaza
-conflictos en archivos nuevos, symlinks en rutas gestionadas o ancestros
-del destino, traversal de rutas y locks no válidos. Antes de escribir,
-valida los conflictos y prepara los artefactos en staging.
+El instalador rechaza modificaciones locales en archivos gestionados, archivos
+no gestionados en rutas nuevas, symlinks normales o rotos en rutas gestionadas
+o ancestros, traversal y locks inválidos. Antes de publicar prepara staging y
+conserva respaldos para recuperar fallos manejables de reemplazo; los respaldos
+se eliminan solo cuando archivos y lock se publican correctamente.
 
-Durante una instalación o upgrade conserva respaldos para recuperar
-errores manejables de reemplazo. Los respaldos se eliminan únicamente
-cuando archivos y lock se publicaron correctamente. No existe
-atomicidad global ante `SIGKILL`, apagados o fallos de sistema de
-archivos; en esos casos pueden requerirse recuperación manual desde
-staging o respaldos.
+No existe atomicidad global ante `SIGKILL`, apagados o fallos irrecuperables
+del sistema de archivos. En esos casos puede ser necesaria recuperación manual
+desde staging o respaldos.
+
+### Límites de la distribución frontend
+
+Instalar una skill frontend no instala herramientas Python, validadores,
+contratos M2, pruebas, PREPARE ni VERIFY. Tampoco ejecuta build, typecheck,
+pruebas frontend ni comandos del consumidor.
+
+Una skill instalada no autoriza una implementación y no implica el estado
+`VALIDATED`. Antes de ejecutar un plan frontend deben estar disponibles y
+haberse ejecutado los controles externos M2 requeridos, incluido el flujo
+PREPARE/VERIFY y su evidencia aplicable.
 
 ## Gobierno de APIs y base de datos
 
@@ -189,20 +249,21 @@ Las skills pueden usar estados de workflow como `ANALYZED`,
 `READY_FOR_IMPLEMENTATION`, `READY_FOR_VALIDATION` o `BLOCKED`. Estos
 describen el progreso del trabajo y no reemplazan la evidencia anterior.
 
-La suite del instalador contiene 14 pruebas automatizadas ejecutadas y
-aprobadas durante R2.3. Esta evidencia cubre instalación, repetición,
-dry-run, locks, upgrade verificado desde v0.2.0, symlinks y recuperación
-de fallos manejables. La instalación limpia end-to-end, el upgrade desde
-v0.2.0, la idempotencia y la protección de modificaciones locales también
-se verificaron contra la línea base `1254d1067be22ad1be7b11fbfce4e04a03be76a7`.
+La suite del instalador cubre instalación, repetición, dry-run, locks,
+upgrades verificables, symlinks y recuperación ante fallos manejables. La
+regresión de distribución 0.4.0 se ejecuta contra repositorios temporales;
+no certifica la ejecución funcional de skills en un consumidor real.
 
 ## Limitaciones y validación funcional futura
 
 La validación funcional de OpenAPI, DDD y Liquibase XML fue realizada durante M1 sobre el laboratorio Java, con 40 pruebas automatizadas exitosas, incluidas pruebas de contrato HTTP y migración incremental sobre PostgreSQL con datos preexistentes.
 
-La versión 0.3.0 también superó las pruebas de instalación, actualización desde v0.2.0, idempotencia e integridad de artefactos distribuidos.
+La release `v0.3.0` superó sus pruebas de instalación, actualización desde
+v0.2.0, idempotencia e integridad de artefactos distribuidos.
 
-Permanece pendiente una validación funcional independiente que demuestre el comportamiento de GitHub Copilot utilizando las skills actualizadas y distribuidas por v0.3.0 en un consumidor nuevo.
+Permanece pendiente una validación funcional independiente que demuestre el
+comportamiento de GitHub Copilot utilizando skills distribuidas en un
+consumidor nuevo.
 
 El framework todavía no incorpora quality gates generales automatizados y no ofrece atomicidad global de instalación ante interrupciones abruptas.
 
