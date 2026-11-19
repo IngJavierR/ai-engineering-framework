@@ -47,6 +47,7 @@ FRONTEND_CAPABILITIES = frozenset({
 })
 SKILL_CAPABILITIES = FRONTEND_CAPABILITIES | frozenset({
     "gatling-performance",
+    "cypress-functional-testing",
 })
 
 

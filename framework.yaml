@@ -68,5 +68,12 @@ framework:
             ".github/skills/gatling-performance/SKILL.md",
             ".github/skills/gatling-performance/references/controlled-profiles.md"
           ]
+        },
+        "cypress-functional-testing": {
+          "dependencies": [],
+          "artifacts": [
+            ".github/skills/cypress-functional-testing/SKILL.md",
+            ".github/skills/cypress-functional-testing/references/functional-scenario-guidance.md"
+          ]
         }
       }
