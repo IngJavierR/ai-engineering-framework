@@ -45,6 +45,9 @@ FRONTEND_CAPABILITIES = frozenset({
     "angular-ui-implementation",
     "react-ui-implementation",
 })
+SKILL_CAPABILITIES = FRONTEND_CAPABILITIES | frozenset({
+    "gatling-performance",
+})
 
 
 class RecoveryError(OSError):
@@ -135,7 +138,7 @@ def validate_capability_artifacts(capability, artifacts):
     for relative in artifacts:
         validate_inventory_path(relative)
 
-    if capability in FRONTEND_CAPABILITIES:
+    if capability in SKILL_CAPABILITIES:
         skill_root = f".github/skills/{capability}/"
         skill_file = f"{skill_root}SKILL.md"
         if skill_file not in artifacts:
@@ -252,7 +255,7 @@ def validate_capability_inventory(inventory=None):
         validate_capability_artifacts(capability, artifacts)
         for relative in artifacts:
             source_path(relative)
-        if capability in FRONTEND_CAPABILITIES:
+        if capability in SKILL_CAPABILITIES:
             validate_frontend_skill_references(capability, artifacts)
 
     for capability in inventory:

@@ -61,5 +61,12 @@ framework:
             ".github/skills/react-ui-implementation/references/react-components.md",
             ".github/skills/react-ui-implementation/references/react-unit-testing.md"
           ]
+        },
+        "gatling-performance": {
+          "dependencies": ["java-base"],
+          "artifacts": [
+            ".github/skills/gatling-performance/SKILL.md",
+            ".github/skills/gatling-performance/references/controlled-profiles.md"
+          ]
         }
       }
