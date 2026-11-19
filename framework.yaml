@@ -75,5 +75,12 @@ framework:
             ".github/skills/cypress-functional-testing/SKILL.md",
             ".github/skills/cypress-functional-testing/references/functional-scenario-guidance.md"
           ]
+        },
+        "security-validation": {
+          "dependencies": [],
+          "artifacts": [
+            ".github/skills/security-validation/SKILL.md",
+            ".github/skills/security-validation/references/reporting-guidance.md"
+          ]
         }
       }

@@ -33,7 +33,7 @@ salida.
 | M2 — Requerimientos + HTML + pruebas | Implementado en modalidad Development / Lab | `customer-profile` se implementó y probó en el laboratorio Angular: unitarias, typecheck, build y Playwright pasaron. La certificación formal permanece `NOT EXECUTED`; no se fabricaron PREPARE ni VERIFY. |
 | M3 — Performance + Arquitectura 4+1 | Implementado en modalidad Development / Lab | El laboratorio Java ejecutó Gatling contra Spring Boot y PostgreSQL locales con perfiles smoke, baseline y stress; generó informes HTML y documentó vistas 4+1 Mermaid y ADR. No constituye certificación de capacidad productiva. |
 | M3.1 — Functional Testing | Implementado en modalidad Development / Lab | El laboratorio Angular ejecutó 4 escenarios Cypress headless contra `customer-profile`, con captura de artefactos locales ignorados por Git. La suite conserva Playwright como capacidad independiente. |
-| M3.3 — Security Validation | No iniciado | No se identificó un reporte integral de seguridad ni automatización de las comprobaciones documentadas. |
+| M3.3 — Security Validation | Implementado en modalidad Development / Lab | Se completaron reportes de seguridad Markdown y JSON para los laboratorios Angular y Java, sustentados por evidencia local y preparados para validación manual. No constituyen certificación formal. |
 | M4 — Distribución corporativa y políticas de cliente | Parcial | El instalador versionado, locks, perfiles y regresión de instalación están implementados. No hay evidencia local de dos consumidores con políticas de cliente distintas consumiendo el mismo framework sin interferencia. |
 | M5 — Evolución multilenguaje | Parcial adelantado | Se conservan capacidades Angular y React como trabajo adelantado reutilizable. No existe evidencia de paquetes Python FastAPI ni de la reutilización transversal del gobierno sin imponer patrones Java. |
 
@@ -99,6 +99,8 @@ reutilizables del framework, no componentes de una aplicación.
   - `references/controlled-profiles.md`
 - `.github/skills/cypress-functional-testing/SKILL.md`
   - `references/functional-scenario-guidance.md`
+- `.github/skills/security-validation/SKILL.md`
+  - `references/reporting-guidance.md`
 
 Las skills guían análisis, planificación y criterios de aceptación.
 No sustituyen requisitos funcionales del proyecto consumidor ni
@@ -133,6 +135,18 @@ los archivos del consumidor.
 | Angular y React | `java-base`, `frontend-ui-design`, Angular, React | 20 |
 | Gatling | `java-base`, `gatling-performance` | 10 |
 | Cypress | `cypress-functional-testing` | 2 |
+| Security validation | `security-validation` | 2 |
+
+La capacidad de revisión se instala sin herramientas ni escáneres implícitos:
+
+```bash
+python3 tools/install.py --target ../consumer-project \
+  --capability security-validation
+```
+
+Cada consumidor selecciona y ejecuta sus analizadores locales compatibles; la
+skill define cómo registrar alcance, evidencia, hallazgos y limitaciones sin
+transferir código a servicios externos.
 
 `angular-ui-implementation` y `react-ui-implementation` dependen de
 `frontend-ui-design`; al seleccionar ambas, la skill de diseño compartida

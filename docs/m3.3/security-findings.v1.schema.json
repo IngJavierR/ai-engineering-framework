@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "security-findings/v1",
+  "title": "Security Findings v1",
+  "type": "object",
+  "required": ["schemaVersion", "repository", "scope", "tools", "findings", "limitations"],
+  "properties": {
+    "schemaVersion": {"const": "security-findings/v1"},
+    "repository": {"type": "object", "required": ["name", "commit", "stack"]},
+    "scope": {"type": "object", "required": ["included", "excluded"]},
+    "tools": {"type": "array"},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "classification", "severity", "confidence", "evidence", "summary", "impact", "manualValidation", "remediation", "priority"],
+        "properties": {
+          "severity": {"enum": ["critical", "high", "medium", "low", "informational"]},
+          "confidence": {"enum": ["high", "medium", "low"]}
+        }
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}
