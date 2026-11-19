@@ -35,7 +35,7 @@ salida.
 | M3.1 — Functional Testing | Implementado en modalidad Development / Lab | El laboratorio Angular ejecutó 4 escenarios Cypress headless contra `customer-profile`, con captura de artefactos locales ignorados por Git. La suite conserva Playwright como capacidad independiente. |
 | M3.3 — Security Validation | Implementado en modalidad Development / Lab | Se completaron reportes de seguridad Markdown y JSON para los laboratorios Angular y Java, sustentados por evidencia local y preparados para validación manual. No constituyen certificación formal. |
 | M4 — Distribución corporativa y políticas de cliente | Implementado en modalidad local demostrable | Java y Angular consumen la misma versión `0.4.0` con locks y políticas aisladas; bootstrap, idempotencia, conflictos y propuesta local de actualización fueron probados sin crear PR remoto. |
-| M5 — Evolución multilenguaje | Parcial adelantado | Se conservan capacidades Angular y React como trabajo adelantado reutilizable. No existe evidencia de paquetes Python FastAPI ni de la reutilización transversal del gobierno sin imponer patrones Java. |
+| M5 — Evolución multilenguaje | En ejecución | Se separa gobierno transversal de Java, se añaden perfiles React y FastAPI y se demuestra su consumo en fixtures aislados. |
 
 La autorización SSH firmada es una capacidad experimental adicional de M2. No
 se considera por sí misma un criterio de salida del milestone; sin embargo, el
@@ -184,6 +184,29 @@ instalador. Cada consumidor recibe su política en
 local. El workflow [propose-framework-update.yml](.github/workflows/propose-framework-update.yml)
 prepara esta validación para GitHub Actions; no abre ni fusiona Pull Requests
 remotos sin una operación autorizada posterior.
+
+## Perfiles multilenguaje
+
+El instalador conserva `java-base` para locks históricos, pero los perfiles
+nuevos inician en `universal-governance`. Por ello Angular, React y FastAPI no
+reciben instrucciones Java, OpenAPI Java, Liquibase Java ni Gatling salvo que
+un consumidor los solicite de forma explícita y compatible.
+
+| Perfil | Gobierno común | Capacidades de stack | Excluye por defecto |
+| --- | --- | --- | --- |
+| `java-spring` | `universal-governance` | `java-base`, Gatling, seguridad | Angular, React, FastAPI |
+| `angular` | `universal-governance` | diseño/implementación Angular, Cypress, seguridad | Java, React, FastAPI |
+| `react` | `universal-governance` | diseño/implementación React, Cypress, seguridad | Java, Angular, FastAPI |
+| `python-fastapi` | `universal-governance` | FastAPI, seguridad | Java, Angular, React |
+
+```bash
+python3 tools/install.py --target ../consumer-project --profile react
+python3 tools/install.py --target ../consumer-project --profile python-fastapi
+```
+
+Una migración desde un lock heredado basado en `java-base` requiere
+`--migrate-stack`. El instalador valida hashes existentes, muestra los
+artefactos que retirará en dry-run y nunca elimina capacidades implícitamente.
 
 `angular-ui-implementation` y `react-ui-implementation` dependen de
 `frontend-ui-design`; al seleccionar ambas, la skill de diseño compartida

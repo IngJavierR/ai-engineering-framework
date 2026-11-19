@@ -23,6 +23,21 @@ class ProfileTest(unittest.TestCase):
             self.assertIn(installer.UNIVERSAL_CAPABILITY, resolved)
             self.assertNotIn(installer.BASE_CAPABILITY, resolved)
 
+    def test_profile_installations_are_idempotent_and_isolated(self):
+        fixture_root = ROOT / ".bootstrap-test-tmp"
+        fixture_root.mkdir(exist_ok=True)
+        for profile in ("java-spring", "angular", "react", "python-fastapi"):
+            with tempfile.TemporaryDirectory(dir=fixture_root) as directory:
+                target = Path(directory) / "consumer"
+                target.mkdir()
+                subprocess.run(["git", "init", "-q", str(target)], check=True)
+                installer.install(target, profile=profile)
+                installer.install(target, profile=profile)
+                lock = json.loads((target / installer.LOCK_NAME).read_text())
+                self.assertEqual(lock["capabilities"][0], installer.UNIVERSAL_CAPABILITY)
+                has_java = (target / ".github/instructions/java.instructions.md").exists()
+                self.assertEqual(has_java, profile == "java-spring")
+
     def test_migration_requires_explicit_flag_and_removes_verified_java_files(self):
         fixture_root = ROOT / ".bootstrap-test-tmp"
         fixture_root.mkdir(exist_ok=True)
