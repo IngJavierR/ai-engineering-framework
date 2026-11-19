@@ -15,7 +15,9 @@ BOOTSTRAP = ROOT / "tools" / "bootstrap.py"
 
 class BootstrapIntegrationTest(unittest.TestCase):
     def setUp(self):
-        self.temporary_directory = tempfile.TemporaryDirectory(dir=REPOSITORY_ROOT)
+        fixture_root = REPOSITORY_ROOT / ".bootstrap-test-tmp"
+        fixture_root.mkdir(exist_ok=True)
+        self.temporary_directory = tempfile.TemporaryDirectory(dir=fixture_root)
         self.root = Path(self.temporary_directory.name)
         self.target = self.root / "consumer"
         self.target.mkdir()

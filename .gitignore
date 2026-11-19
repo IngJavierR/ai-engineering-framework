@@ -4,6 +4,7 @@
 ### macOS ###
 # General
 .DS_Store
+.bootstrap-test-tmp/
 .AppleDouble
 .LSOverride
 
