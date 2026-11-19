@@ -22,6 +22,12 @@ framework:
     inventoryFormat: capability-inventory/v1
     inventory: |
       {
+        "universal-governance": {
+          "dependencies": [],
+          "artifacts": [
+            ".github/instructions/global-governance.instructions.md"
+          ]
+        },
         "java-base": {
           "dependencies": [],
           "artifacts": [
@@ -61,6 +67,34 @@ framework:
             ".github/skills/react-ui-implementation/references/react-components.md",
             ".github/skills/react-ui-implementation/references/react-unit-testing.md"
           ]
+        },
+        "fastapi-development": {
+          "dependencies": ["universal-governance"],
+          "artifacts": [
+            ".github/skills/fastapi-development/SKILL.md",
+            ".github/skills/fastapi-development/references/fastapi-testing.md"
+          ]
+        },
+        "java-spring": {
+          "dependencies": ["universal-governance", "java-base"],
+          "artifacts": [
+            ".github/skills/gatling-performance/SKILL.md",
+            ".github/skills/gatling-performance/references/controlled-profiles.md",
+            ".github/skills/security-validation/SKILL.md",
+            ".github/skills/security-validation/references/reporting-guidance.md"
+          ]
+        },
+        "angular": {
+          "dependencies": ["universal-governance", "angular-ui-implementation", "cypress-functional-testing", "security-validation"],
+          "artifacts": []
+        },
+        "react": {
+          "dependencies": ["universal-governance", "react-ui-implementation", "cypress-functional-testing", "security-validation"],
+          "artifacts": []
+        },
+        "python-fastapi": {
+          "dependencies": ["universal-governance", "fastapi-development", "security-validation"],
+          "artifacts": []
         },
         "gatling-performance": {
           "dependencies": ["java-base"],

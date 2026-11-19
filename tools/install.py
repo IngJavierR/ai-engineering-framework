@@ -40,6 +40,8 @@ LEGACY_MANAGED_FILES = [
     ".github/instructions/java.instructions.md",
 ]
 BASE_CAPABILITY = "java-base"
+UNIVERSAL_CAPABILITY = "universal-governance"
+STACK_PROFILES = frozenset({"java-spring", "angular", "react", "python-fastapi"})
 FRONTEND_CAPABILITIES = frozenset({
     "frontend-ui-design",
     "angular-ui-implementation",
@@ -133,7 +135,7 @@ def validate_inventory_path(relative):
 
 
 def validate_capability_artifacts(capability, artifacts):
-    if not isinstance(artifacts, list) or not artifacts:
+    if not isinstance(artifacts, list) or (not artifacts and capability not in STACK_PROFILES):
         raise ValueError(
             f"Capability has an invalid artifact list: {capability}"
         )
@@ -188,7 +190,7 @@ def validate_frontend_skill_references(capability, artifacts):
         source_path(relative)
 
 
-def resolve_capabilities(requested, inventory=None):
+def resolve_capabilities(requested, inventory=None, base_capability=BASE_CAPABILITY):
     if inventory is None:
         inventory = capability_inventory()
     if not isinstance(requested, (list, tuple)):
@@ -234,7 +236,7 @@ def resolve_capabilities(requested, inventory=None):
         seen_capabilities.add(capability)
         resolved.append(capability)
 
-    visit(BASE_CAPABILITY)
+    visit(base_capability)
     requested_capabilities = set()
     for capability in requested:
         if not isinstance(capability, str):
@@ -261,7 +263,8 @@ def validate_capability_inventory(inventory=None):
             validate_frontend_skill_references(capability, artifacts)
 
     for capability in inventory:
-        resolve_capabilities((capability,), inventory)
+        base = UNIVERSAL_CAPABILITY if capability in STACK_PROFILES else BASE_CAPABILITY
+        resolve_capabilities((capability,), inventory, base)
 
 
 def frontend_capabilities(resolved):
@@ -427,7 +430,12 @@ def validate_lock(lock):
         if len(capabilities) != len(set(capabilities)):
             raise ValueError("Existing framework lock has duplicate capabilities")
         try:
-            resolved, files = resolve_capabilities(capabilities[1:])
+            base = capabilities[0]
+            if base not in {BASE_CAPABILITY, UNIVERSAL_CAPABILITY}:
+                raise ValueError("Existing framework lock has invalid capabilities")
+            resolved, files = resolve_capabilities(
+                capabilities[1:], base_capability=base
+            )
         except (TypeError, ValueError) as exc:
             raise ValueError(
                 "Existing framework lock has invalid capabilities"
@@ -521,8 +529,9 @@ def validate_historical_source(lock):
     if lock.get("schema") == LOCK_SCHEMA:
         inventory = historical_inventory(config)
         try:
+            base = lock["capabilities"][0]
             resolved, files = resolve_capabilities(
-                lock["capabilities"][1:], inventory
+                lock["capabilities"][1:], inventory, base
             )
         except (TypeError, ValueError) as exc:
             raise ValueError(
@@ -615,7 +624,8 @@ def cleanup_backups(backups, lock_backup):
 
 
 def replace_staged_files(
-    target, staged_files, staged_lock, replace_files, replace_lock
+    target, staged_files, staged_lock, replace_files, replace_lock,
+    remove_files=(),
 ):
     backups = {}
     created = []
@@ -624,6 +634,17 @@ def replace_staged_files(
     lock_replaced = False
 
     try:
+        for relative in remove_files:
+            destination = destination_path(target, relative)
+            if not path_lexists(destination) or destination.is_symlink() or not destination.is_file():
+                raise OSError(f"Managed migration destination is unsafe: {relative}")
+            backup = destination.with_name(
+                f".{destination.name}.ai-framework-backup"
+            )
+            if path_lexists(backup):
+                raise OSError(f"Backup path exists: {relative}")
+            os.replace(destination, backup)
+            backups[destination] = backup
         for relative in staged_files:
             destination = destination_path(target, relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -686,8 +707,13 @@ def replace_staged_files(
         cleanup_backups(backups, lock_backup)
 
 
-def install(target, dry_run=False, upgrade=False, capabilities=()):
-    resolved, resolved_files = resolve_capabilities(capabilities)
+def install(target, dry_run=False, upgrade=False, capabilities=(), profile=None,
+            migrate_stack=False):
+    if profile is not None and profile not in STACK_PROFILES:
+        raise ValueError(f"Unknown stack profile: {profile}")
+    requested = (profile,) if profile is not None else capabilities
+    base = UNIVERSAL_CAPABILITY if profile is not None else BASE_CAPABILITY
+    resolved, resolved_files = resolve_capabilities(requested, base_capability=base)
     target = validate_target(target)
 
     if git("status", "--porcelain"):
@@ -699,6 +725,7 @@ def install(target, dry_run=False, upgrade=False, capabilities=()):
     lock = build_lock(release, commit, files, resolved)
     lock_path = target / LOCK_NAME
     replace_files = set()
+    remove_files = set()
     scenario = "clean installation"
 
     if path_lexists(lock_path):
@@ -717,16 +744,18 @@ def install(target, dry_run=False, upgrade=False, capabilities=()):
                         "perform a manual upgrade"
                     )
                 existing_capabilities = tuple(existing["capabilities"])
-                if not set(existing_capabilities).issubset(resolved):
+                if not set(existing_capabilities).issubset(resolved) and not migrate_stack:
                     raise ValueError(
-                        "Capability removal is BLOCKED during upgrade"
+                        "Capability removal is BLOCKED during upgrade; use --migrate-stack for a reviewed stack migration"
                     )
             validate_historical_source(existing)
             validate_local_manifest(target, existing["files"])
-            if not set(existing["files"]).issubset(files):
+            if not set(existing["files"]).issubset(files) and not migrate_stack:
                 raise ValueError(
-                    "Artifact removal is BLOCKED during upgrade"
+                    "Artifact removal is BLOCKED during upgrade; use --migrate-stack for a reviewed stack migration"
                 )
+            if migrate_stack:
+                remove_files = set(existing["files"]) - set(files)
             validate_new_file_conflicts(target, existing["files"], files)
             replace_files = set(existing["files"])
             scenario = "upgrade"
@@ -749,6 +778,10 @@ def install(target, dry_run=False, upgrade=False, capabilities=()):
 
     if dry_run:
         print(f"DRY RUN: {scenario} would be performed")
+        if remove_files:
+            print("DRY RUN: stack migration would remove:")
+            for relative in sorted(remove_files):
+                print(f"  {relative}")
         return
 
     if scenario == "matching installation":
@@ -769,11 +802,12 @@ def install(target, dry_run=False, upgrade=False, capabilities=()):
             staged_lock,
             replace_files,
             path_lexists(lock_path),
+            remove_files,
         )
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
-    if replace_files:
+    if replace_files or remove_files:
         print("Upgrade completed")
     else:
         print("Installation completed")
@@ -800,6 +834,8 @@ def main():
             "is blocked until B.4B.2."
         ),
     )
+    parser.add_argument("--profile", choices=sorted(STACK_PROFILES))
+    parser.add_argument("--migrate-stack", action="store_true")
     args = parser.parse_args()
 
     try:
@@ -808,6 +844,8 @@ def main():
             args.dry_run,
             args.upgrade,
             args.capability,
+            args.profile,
+            args.migrate_stack,
         )
     except (
         ValueError,
