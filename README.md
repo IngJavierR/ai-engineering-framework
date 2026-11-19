@@ -34,7 +34,7 @@ salida.
 | M3 — Performance + Arquitectura 4+1 | Implementado en modalidad Development / Lab | El laboratorio Java ejecutó Gatling contra Spring Boot y PostgreSQL locales con perfiles smoke, baseline y stress; generó informes HTML y documentó vistas 4+1 Mermaid y ADR. No constituye certificación de capacidad productiva. |
 | M3.1 — Functional Testing | Implementado en modalidad Development / Lab | El laboratorio Angular ejecutó 4 escenarios Cypress headless contra `customer-profile`, con captura de artefactos locales ignorados por Git. La suite conserva Playwright como capacidad independiente. |
 | M3.3 — Security Validation | Implementado en modalidad Development / Lab | Se completaron reportes de seguridad Markdown y JSON para los laboratorios Angular y Java, sustentados por evidencia local y preparados para validación manual. No constituyen certificación formal. |
-| M4 — Distribución corporativa y políticas de cliente | En ejecución | Se añade `bootstrap.py` como fachada del instalador, políticas de cliente aisladas y una propuesta local de actualización revisable. |
+| M4 — Distribución corporativa y políticas de cliente | Implementado en modalidad local demostrable | Java y Angular consumen la misma versión `0.4.0` con locks y políticas aisladas; bootstrap, idempotencia, conflictos y propuesta local de actualización fueron probados sin crear PR remoto. |
 | M5 — Evolución multilenguaje | Parcial adelantado | Se conservan capacidades Angular y React como trabajo adelantado reutilizable. No existe evidencia de paquetes Python FastAPI ni de la reutilización transversal del gobierno sin imponer patrones Java. |
 
 La autorización SSH firmada es una capacidad experimental adicional de M2. No
