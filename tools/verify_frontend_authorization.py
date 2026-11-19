@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 import re
@@ -27,6 +28,11 @@ SPEC.loader.exec_module(contracts)
 
 SHA = re.compile(r"^[0-9a-f]{40}$")
 PRINCIPAL = re.compile(r"^[^\s,!*?\[\]{}\\]+$")
+TRAILER = re.compile(r"^(M2-[A-Za-z0-9-]+): (.+)$")
+TRAILER_NAMES = frozenset({
+    "M2-Authorization-Version", "M2-Feature", "M2-Decision",
+    "M2-Requirements", "M2-Statement-SHA256", "M2-Consumer-Root-SHA256",
+})
 TIMEOUT_SECONDS = 15
 
 
@@ -54,7 +60,7 @@ def passed() -> AuthorizationResult:
     return AuthorizationResult(
         "PASS",
         "AUTH-000",
-        "SSH signature and policy scope are valid; decision authorization remains pending trailer verification.",
+        "SSH signature, policy scope, and signed authorization payload are valid.",
     )
 
 
@@ -117,6 +123,8 @@ def _run(arguments: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]
         raise ExternalToolError("AUTH-ENV-003", "required tool timed out") from None
     except OSError:
         raise ExternalToolError("AUTH-ENV-004", "required tool could not be invoked") from None
+    except UnicodeDecodeError:
+        raise ExternalToolError("AUTH-PAYLOAD-001", "commit message cannot be decoded") from None
 
 
 def _git(repository: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -153,6 +161,33 @@ def _is_single_principal(value: str) -> bool:
     return bool(PRINCIPAL.fullmatch(value))
 
 
+def _sha256(value: str) -> str:
+    return "sha256:" + hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _payload(message: str) -> tuple[dict[str, str] | None, AuthorizationResult | None]:
+    lines = message.rstrip("\n").split("\n")
+    start = len(lines)
+    while start and TRAILER.fullmatch(lines[start - 1]):
+        start -= 1
+    if start < 2 or lines[start - 1] != "" or not any(line.strip() for line in lines[:start - 1]):
+        return None, blocked("AUTH-PAYLOAD-001", "M2 trailers must be the final trailer block")
+    body = lines[:start - 1]
+    if any(line.lstrip().startswith("M2-") for line in body):
+        return None, blocked("AUTH-PAYLOAD-001", "M2 trailers outside the final block are not allowed")
+    values: dict[str, str] = {}
+    for line in lines[start:]:
+        match = TRAILER.fullmatch(line)
+        assert match is not None
+        name, value = match.groups()
+        if name not in TRAILER_NAMES or name in values:
+            return None, blocked("AUTH-PAYLOAD-001", "M2 trailers are unknown or ambiguous")
+        values[name] = value
+    if set(values) != TRAILER_NAMES:
+        return None, blocked("AUTH-PAYLOAD-001", "M2 trailer block is incomplete")
+    return values, None
+
+
 def _consumer_root(consumer_repository: Path) -> tuple[Path | None, AuthorizationResult | None]:
     if not consumer_repository.is_dir() or _has_symlink_ancestor(consumer_repository):
         return None, blocked("AUTH-CONSUMER-001", "consumer repository is unavailable or unsafe")
@@ -187,6 +222,7 @@ def verify_authorization(
     feature_id: str,
     decision_id: str,
     requirement_ids: tuple[str, ...],
+    decision_statement: str,
     manifest_directory: Path | None = None,
 ) -> AuthorizationResult:
     """Verify only the local signed-commit evidence and declared trust scope."""
@@ -200,6 +236,7 @@ def verify_authorization(
             feature_id=feature_id,
             decision_id=decision_id,
             requirement_ids=requirement_ids,
+            decision_statement=decision_statement,
             manifest_directory=manifest_directory,
         )
     except ExternalToolError as error:
@@ -216,6 +253,7 @@ def _verify_authorization(
     feature_id: str,
     decision_id: str,
     requirement_ids: tuple[str, ...],
+    decision_statement: str,
     manifest_directory: Path | None,
 ) -> AuthorizationResult:
     if policy_path is None:
@@ -228,6 +266,12 @@ def _verify_authorization(
         return blocked("AUTH-REQUEST-001", "principal, scope IDs, and requirements are required")
     if len(requirement_ids) != len(set(requirement_ids)):
         return blocked("AUTH-REQUEST-001", "expected requirement IDs must be unique")
+    if not decision_statement:
+        return blocked("AUTH-REQUEST-001", "decision statement is required")
+    try:
+        statement_hash = _sha256(decision_statement)
+    except UnicodeEncodeError:
+        return blocked("AUTH-REQUEST-002", "decision statement cannot be encoded as UTF-8")
     consumer, failure = _consumer_root(consumer_repository)
     if failure:
         return failure
@@ -309,4 +353,22 @@ def _verify_authorization(
     if result.returncode != 0:
         reason = result.stderr.strip() or result.stdout.strip() or "SSH signature verification failed"
         return blocked("AUTH-SIGNATURE-001", reason)
+    message_result = _git(consumer, "log", "-1", "--format=%B", approval_commit)
+    if message_result.returncode != 0:
+        return blocked("AUTH-PAYLOAD-001", "commit message cannot be extracted")
+    payload, failure = _payload(message_result.stdout)
+    if failure:
+        return failure
+    assert payload is not None
+    canonical_requirements = ",".join(sorted(requirement_ids))
+    expected = {
+        "M2-Authorization-Version": "1",
+        "M2-Feature": feature_id,
+        "M2-Decision": decision_id,
+        "M2-Requirements": canonical_requirements,
+        "M2-Statement-SHA256": statement_hash,
+        "M2-Consumer-Root-SHA256": _sha256(str(consumer)),
+    }
+    if payload != expected:
+        return blocked("AUTH-PAYLOAD-002", "M2 trailer values do not match the authorization request")
     return passed()

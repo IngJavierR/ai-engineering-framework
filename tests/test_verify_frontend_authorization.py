@@ -21,6 +21,7 @@ SPEC.loader.exec_module(authorization)
 
 
 class FrontendAuthorizationVerifierTestCase(unittest.TestCase):
+    statement = "Trim outer spaces before validating the display name."
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary_directory.name)
@@ -56,13 +57,29 @@ class FrontendAuthorizationVerifierTestCase(unittest.TestCase):
         )
         return key
 
-    def commit(self, key=None, message="authorization fixture"):
+    def payload(self, **overrides):
+        requirements = overrides.get("requirements", "REQ-CUSTOMER-PROFILE-001-02")
+        values = {
+            "M2-Authorization-Version": "1",
+            "M2-Feature": "FEAT-CUSTOMER-PROFILE-001",
+            "M2-Decision": "DEC-CUSTOMER-PROFILE-001-01",
+            "M2-Requirements": requirements,
+            "M2-Statement-SHA256": authorization._sha256(self.statement),
+            "M2-Consumer-Root-SHA256": authorization._sha256(str(self.consumer.resolve())),
+        }
+        values.update(overrides)
+        return "\n".join(f"{name}: {value}" for name, value in values.items())
+
+    def commit(self, key=None, message="authorization fixture", payload="default", separator="\n\n"):
         self.commit_number += 1
         (self.consumer / "record.txt").write_text(
             f"{message}-{self.commit_number}", encoding="utf-8"
         )
         self.git("add", "record.txt", cwd=self.consumer)
-        arguments = ["commit", "-m", message]
+        if payload == "default":
+            payload = self.payload()
+        commit_message = f"{message}{separator}{payload}" if payload is not None else message
+        arguments = ["commit", "-m", commit_message]
         if key:
             arguments = [
                 "-c", "gpg.format=ssh",
@@ -105,6 +122,7 @@ class FrontendAuthorizationVerifierTestCase(unittest.TestCase):
             feature_id=overrides.get("feature_id", "FEAT-CUSTOMER-PROFILE-001"),
             decision_id=overrides.get("decision_id", "DEC-CUSTOMER-PROFILE-001-01"),
             requirement_ids=overrides.get("requirement_ids", ("REQ-CUSTOMER-PROFILE-001-02",)),
+            decision_statement=overrides.get("decision_statement", self.statement),
             manifest_directory=overrides.get("manifest_directory"),
         )
 
@@ -140,7 +158,7 @@ class FrontendAuthorizationVerifierTestCase(unittest.TestCase):
     def test_t04_blocks_missing_unsigned_and_invalid_signature_commits(self):
         signed = self.commit(self.key)
         self.assertEqual("AUTH-COMMIT-002", self.verify("a" * 40, policy=self.policy()).code)
-        unsigned = self.commit()
+        unsigned = self.commit(payload=self.payload())
         self.assertEqual("AUTH-SIGNATURE-001", self.verify(unsigned, policy=self.policy()).code)
         raw = self.git("cat-file", "commit", signed, cwd=self.consumer).stdout
         tampered = raw.replace("authorization fixture", "authorization fixturE", 1)
@@ -288,6 +306,113 @@ class FrontendAuthorizationVerifierTestCase(unittest.TestCase):
         linked = self.root / "linked-worktree"
         self.git("worktree", "add", "--detach", str(linked), approval, cwd=self.consumer)
         self.assertEqual("AUTH-CONSUMER-002", self.verify(approval, consumer_repository=linked).code)
+
+    def test_t13_validates_signed_authorization_payload(self):
+        complete = self.payload()
+        values = dict(line.split(": ", 1) for line in complete.splitlines())
+        cases = {
+            **{
+                f"missing-{name}": "\n".join(
+                    f"{key}: {value}" for key, value in values.items() if key != name
+                )
+                for name in values
+            },
+            "duplicate": self.payload() + "\nM2-Feature: FEAT-CUSTOMER-PROFILE-001",
+            "unknown": self.payload() + "\nM2-Unknown: value",
+            "malformed": self.payload() + "\nM2-Feature FEAT-CUSTOMER-PROFILE-001",
+            "body": "M2-Feature: FEAT-CUSTOMER-PROFILE-001\n\n" + self.payload(),
+            "feature": self.payload(**{"M2-Feature": "FEAT-OTHER-001"}),
+            "decision": self.payload(**{"M2-Decision": "DEC-OTHER-001-01"}),
+            "requirements-extra": self.payload(**{"M2-Requirements": "REQ-CUSTOMER-PROFILE-001-02,REQ-OTHER-001-01"}),
+            "requirements-order": self.payload(**{"M2-Requirements": "REQ-OTHER-001-01,REQ-CUSTOMER-PROFILE-001-02"}),
+            "statement": self.payload(**{"M2-Statement-SHA256": authorization._sha256(self.statement + "!")}),
+            "consumer": self.payload(**{"M2-Consumer-Root-SHA256": authorization._sha256("/other")}),
+        }
+        for label, payload in cases.items():
+            with self.subTest(label=label):
+                approval = self.commit(self.key, payload=payload)
+                expected = "AUTH-PAYLOAD-001" if label.startswith("missing-") or label in {"duplicate", "unknown", "malformed", "body"} else "AUTH-PAYLOAD-002"
+                self.assertEqual(expected, self.verify(approval).code)
+
+    def test_t14_rejects_noncanonical_multi_requirement_payloads(self):
+        requirements = (
+            "REQ-CUSTOMER-PROFILE-001-02",
+            "REQ-CUSTOMER-PROFILE-001-03",
+        )
+        policy = self.policy(requirement_ids=list(requirements))
+        canonical = ",".join(sorted(requirements))
+        cases = {
+            "incomplete": "REQ-CUSTOMER-PROFILE-001-02",
+            "extra": canonical + ",REQ-OTHER-001-01",
+            "unordered": ",".join(reversed(sorted(requirements))),
+            "duplicate": canonical + ",REQ-CUSTOMER-PROFILE-001-03",
+        }
+        for label, payload_requirements in cases.items():
+            with self.subTest(label=label):
+                approval = self.commit(
+                    self.key,
+                    payload=self.payload(**{"M2-Requirements": payload_requirements}),
+                )
+                self.assertEqual(
+                    "AUTH-PAYLOAD-002",
+                    self.verify(approval, policy=policy, requirement_ids=requirements).code,
+                )
+
+    def test_t15_rejects_payload_without_a_valid_signature(self):
+        approval = self.commit(payload=self.payload())
+        self.assertEqual("AUTH-SIGNATURE-001", self.verify(approval).code)
+        untrusted = self.commit(self.other_key, payload=self.payload(**{"M2-Decision": "DEC-OTHER-001-01"}))
+        self.assertEqual("AUTH-SIGNATURE-001", self.verify(untrusted).code)
+
+    def test_t16_blocks_message_extraction_and_decoding_failures(self):
+        approval = self.commit(self.key)
+        original_git = authorization._git
+
+        def unreadable_message(repository, *arguments):
+            if arguments[:2] == ("log", "-1"):
+                return subprocess.CompletedProcess([], 1, "", "")
+            return original_git(repository, *arguments)
+
+        with mock.patch.object(authorization, "_git", side_effect=unreadable_message):
+            self.assertEqual("AUTH-PAYLOAD-001", self.verify(approval).code)
+
+    def test_t17_rejects_unseparated_and_ambiguous_m2_body_blocks(self):
+        cases = {
+            "trailers-only": ("", self.payload(), ""),
+            "no-separator": ("authorization fixture", self.payload(), "\n"),
+            "indented": "authorization fixture\n  M2-Feature: FEAT-CUSTOMER-PROFILE-001\n\n" + self.payload(),
+            "multiple": "authorization fixture\n\nM2-Feature: FEAT-CUSTOMER-PROFILE-001\ncomment\n\n" + self.payload(),
+        }
+        for label, payload in cases.items():
+            with self.subTest(label=label):
+                if isinstance(payload, tuple):
+                    approval = self.commit(
+                        self.key,
+                        message=payload[0],
+                        payload=payload[1],
+                        separator=payload[2],
+                    )
+                else:
+                    approval = self.commit(self.key, payload=payload)
+                self.assertEqual("AUTH-PAYLOAD-001", self.verify(approval).code)
+        approval = self.commit(
+            self.key,
+            message="The M2-Feature trailer is documented in prose.",
+        )
+        self.assertEqual("AUTH-000", self.verify(approval).code)
+
+    def test_t18_blocks_statement_that_cannot_encode_as_utf8(self):
+        approval = self.commit(self.key)
+        self.assertEqual(
+            "AUTH-REQUEST-002",
+            self.verify(approval, decision_statement="invalid\ud800statement").code,
+        )
+        with mock.patch.object(
+            authorization,
+            "_payload",
+            return_value=(None, authorization.blocked("AUTH-PAYLOAD-001", "commit message cannot be decoded")),
+        ):
+            self.assertEqual("AUTH-PAYLOAD-001", self.verify(approval).code)
 
 
 if __name__ == "__main__":
