@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "client-policy/v1",
+  "clientId": "example-client-a-java",
+  "enabledCapabilities": ["gatling-performance", "security-validation"],
+  "additionalRules": [
+    {"id": "CLIENT-A-DB-001", "statement": "All structural database changes require Liquibase XML review."}
+  ],
+  "exceptions": []
+}

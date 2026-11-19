@@ -34,7 +34,7 @@ salida.
 | M3 — Performance + Arquitectura 4+1 | Implementado en modalidad Development / Lab | El laboratorio Java ejecutó Gatling contra Spring Boot y PostgreSQL locales con perfiles smoke, baseline y stress; generó informes HTML y documentó vistas 4+1 Mermaid y ADR. No constituye certificación de capacidad productiva. |
 | M3.1 — Functional Testing | Implementado en modalidad Development / Lab | El laboratorio Angular ejecutó 4 escenarios Cypress headless contra `customer-profile`, con captura de artefactos locales ignorados por Git. La suite conserva Playwright como capacidad independiente. |
 | M3.3 — Security Validation | Implementado en modalidad Development / Lab | Se completaron reportes de seguridad Markdown y JSON para los laboratorios Angular y Java, sustentados por evidencia local y preparados para validación manual. No constituyen certificación formal. |
-| M4 — Distribución corporativa y políticas de cliente | Parcial | El instalador versionado, locks, perfiles y regresión de instalación están implementados. No hay evidencia local de dos consumidores con políticas de cliente distintas consumiendo el mismo framework sin interferencia. |
+| M4 — Distribución corporativa y políticas de cliente | En ejecución | Se añade `bootstrap.py` como fachada del instalador, políticas de cliente aisladas y una propuesta local de actualización revisable. |
 | M5 — Evolución multilenguaje | Parcial adelantado | Se conservan capacidades Angular y React como trabajo adelantado reutilizable. No existe evidencia de paquetes Python FastAPI ni de la reutilización transversal del gobierno sin imponer patrones Java. |
 
 La autorización SSH firmada es una capacidad experimental adicional de M2. No
@@ -147,6 +147,43 @@ python3 tools/install.py --target ../consumer-project \
 Cada consumidor selecciona y ejecuta sus analizadores locales compatibles; la
 skill define cómo registrar alcance, evidencia, hallazgos y limitaciones sin
 transferir código a servicios externos.
+
+## Bootstrap y políticas de cliente
+
+`tools/bootstrap.py` es la interfaz de consumo corporativo. Delega la copia,
+lock, integridad e idempotencia exclusivamente a `tools/install.py`; no crea un
+segundo instalador. Requiere una versión disponible en la fuente local, una
+política JSON autorizada y un repositorio Git destino.
+
+```bash
+python3 tools/bootstrap.py \
+  --target ../consumer-project \
+  --version 0.4.0 \
+  --client-policy docs/m4/examples/client-a-java-policy.json \
+  --dry-run
+```
+
+Una primera incorporación que encuentre artefactos del framework sin lock se
+detiene. `--replace-framework-artifacts` es una decisión explícita de adopción;
+no reemplaza archivos locales por defecto. Las instalaciones posteriores usan
+el lock existente y solicitan la actualización controlada mediante el
+instalador. Cada consumidor recibe su política en
+`.ai-framework/policies/<client-id>.json` y estado en
+`.ai-framework/bootstrap.json`.
+
+### Precedencia de políticas
+
+1. Los controles obligatorios globales del framework siempre prevalecen.
+2. La política de cliente puede habilitar capacidades, añadir reglas y declarar
+   excepciones explícitas dentro de su propio consumidor.
+3. Una política que solicite deshabilitar controles obligatorios se rechaza.
+4. Las políticas no se comparten: cada consumidor mantiene su archivo y lock,
+   por lo que una actualización no puede modificar la política de otro.
+
+`--proposal-dir` genera `proposal.json` y `PR_UPDATE.md` para revisión humana
+local. El workflow [propose-framework-update.yml](.github/workflows/propose-framework-update.yml)
+prepara esta validación para GitHub Actions; no abre ni fusiona Pull Requests
+remotos sin una operación autorizada posterior.
 
 `angular-ui-implementation` y `react-ui-implementation` dependen de
 `frontend-ui-design`; al seleccionar ambas, la skill de diseño compartida

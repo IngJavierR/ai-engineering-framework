@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "client-policy/v1",
+  "clientId": "example-client-b-angular",
+  "enabledCapabilities": ["angular-ui-implementation", "cypress-functional-testing", "security-validation"],
+  "additionalRules": [
+    {"id": "CLIENT-B-FE-001", "statement": "Functional scenarios must preserve accessible interactions."}
+  ],
+  "exceptions": []
+}
