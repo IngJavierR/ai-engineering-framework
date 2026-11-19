@@ -35,7 +35,7 @@ salida.
 | M3.1 — Functional Testing | Implementado en modalidad Development / Lab | El laboratorio Angular ejecutó 4 escenarios Cypress headless contra `customer-profile`, con captura de artefactos locales ignorados por Git. La suite conserva Playwright como capacidad independiente. |
 | M3.3 — Security Validation | Implementado en modalidad Development / Lab | Se completaron reportes de seguridad Markdown y JSON para los laboratorios Angular y Java, sustentados por evidencia local y preparados para validación manual. No constituyen certificación formal. |
 | M4 — Distribución corporativa y políticas de cliente | Implementado en modalidad local demostrable | Java y Angular consumen la misma versión `0.4.0` con locks y políticas aisladas; bootstrap, idempotencia, conflictos y propuesta local de actualización fueron probados sin crear PR remoto. |
-| M5 — Evolución multilenguaje | En ejecución | Se separa gobierno transversal de Java, se añaden perfiles React y FastAPI y se demuestra su consumo en fixtures aislados. |
+| M5 — Evolución multilenguaje | Implementado en modalidad de piloto | Gobierno transversal, perfiles aislados y fixtures React/FastAPI demostrados; consultar la evaluación de preparación para límites de distribución. |
 
 La autorización SSH firmada es una capacidad experimental adicional de M2. No
 se considera por sí misma un criterio de salida del milestone; sin embargo, el
@@ -43,6 +43,15 @@ manifiesto disponible tampoco satisface los controles M2 previos existentes:
 es ilustrativo, carece de PREPARE y de un ancla externa independiente, y la
 decisión local limita explícitamente la autorización a documentación y
 evidencia. Consultar [el reporte de cierre de la reconciliación](docs/m2/roadmap-reconciliation-2026-11-19.md).
+
+## Preparación corporativa
+
+La evaluación integral actual concluye **READY_WITH_LIMITATIONS**: el framework
+es apto para un piloto interno controlado con fuente local fijada, locks y
+revisión humana, pero no para distribución corporativa general ni release
+publicada. Consultar [release-readiness.md](docs/release-readiness.md) para la
+matriz de madurez, riesgos bloqueantes, condiciones operativas y decisión de
+dirección pendiente.
 
 ## Componentes
 
