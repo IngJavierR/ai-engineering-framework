@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ingjavierr.github.io/ai-engineering-framework/schemas/authorization-trust.v1.schema.json",
+  "title": "authorization-trust/v1",
+  "description": "Politica auxiliar de claves y alcance de aprobacion; no certifica identidad ni validez criptografica.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repositoryRoot", "authorizedSigners", "revokedKeyFingerprints"],
+  "properties": {
+    "schemaVersion": {"const": "authorization-trust/v1"},
+    "repositoryRoot": {"$ref": "#/$defs/absoluteCanonicalPath"},
+    "authorizedSigners": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/authorizedSigner"}
+    },
+    "revokedKeyFingerprints": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/sshFingerprint"},
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "nonEmptyText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!\\s*$)(?!.*[\\u0000-\\u001F\\u007F])(?!.*[*?\\[\\]{}]).+$"
+    },
+    "absoluteCanonicalPath": {
+      "type": "string",
+      "pattern": "^/(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[*?\\[\\]{}])[^\\r\\n]+$"
+    },
+    "featureId": {
+      "type": "string",
+      "pattern": "^FEAT-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+$"
+    },
+    "decisionId": {
+      "type": "string",
+      "pattern": "^DEC-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"
+    },
+    "requirementId": {
+      "type": "string",
+      "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+-[0-9]+$"
+    },
+    "sshPublicKey": {
+      "type": "string",
+      "pattern": "^(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\\.com|sk-ecdsa-sha2-nistp256@openssh\\.com) [A-Za-z0-9+/]+={0,3}(?: [^\\r\\n]+)?$"
+    },
+    "sshFingerprint": {
+      "type": "string",
+      "pattern": "^SHA256:[A-Za-z0-9+/]+={0,3}$"
+    },
+    "authorizedSigner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principal", "publicKey", "featureIds", "decisionIds", "requirementIds"],
+      "properties": {
+        "principal": {"$ref": "#/$defs/nonEmptyText"},
+        "publicKey": {"$ref": "#/$defs/sshPublicKey"},
+        "featureIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/featureId"},
+          "uniqueItems": true
+        },
+        "decisionIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/decisionId"},
+          "uniqueItems": true
+        },
+        "requirementIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/requirementId"},
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

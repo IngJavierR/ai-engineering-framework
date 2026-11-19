@@ -27,6 +27,9 @@ except ImportError as error:  # pragma: no cover - depends on runtime setup
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_DIRECTORY = ROOT / "docs" / "m2" / "schemas"
 SCHEMA_PATHS = {
+    "authorization-trust/v1": (
+        SCHEMA_DIRECTORY / "authorization-trust.v1.schema.json"
+    ),
     "frontend-ui-input/v1": SCHEMA_DIRECTORY / "frontend-ui-input.v1.schema.json",
     "frontend-unit-tests/v1": (
         SCHEMA_DIRECTORY / "frontend-unit-tests.v1.schema.json"
@@ -34,6 +37,7 @@ SCHEMA_PATHS = {
     "frontend-ui-output/v1": SCHEMA_DIRECTORY / "frontend-ui-output.v1.schema.json",
 }
 ARGUMENT_CONTRACTS = {
+    "authorization_trust": "authorization-trust/v1",
     "input": "frontend-ui-input/v1",
     "unit_tests": "frontend-unit-tests/v1",
     "output": "frontend-ui-output/v1",
@@ -149,6 +153,35 @@ def _load_schema(schema_version: str, document: Path) -> tuple[Any | None, list[
         ]
 
 
+def _authorization_trust_errors(
+    document: Mapping[Any, Any],
+    path: Path,
+) -> list[ValidationError]:
+    """Validate uniqueness constraints JSON Schema cannot express by property."""
+    signers = document.get("authorizedSigners")
+    if not isinstance(signers, list):
+        return []
+
+    seen_principals: set[str] = set()
+    errors: list[ValidationError] = []
+    for index, signer in enumerate(signers):
+        if not isinstance(signer, Mapping):
+            continue
+        principal = signer.get("principal")
+        if isinstance(principal, str) and principal in seen_principals:
+            errors.append(
+                ValidationError(
+                    "SCHEMA-003",
+                    path,
+                    f"$.authorizedSigners.{index}.principal",
+                    "duplicate principal",
+                )
+            )
+        elif isinstance(principal, str):
+            seen_principals.add(principal)
+    return errors
+
+
 def validate_document(path: Path, expected_schema_version: str | None = None) -> list[ValidationError]:
     """Validate one YAML contract without modifying the input document."""
     document, errors = _load_yaml(path)
@@ -199,15 +232,29 @@ def validate_document(path: Path, expected_schema_version: str | None = None) ->
         ),
     )
 
-    return [
+    validation_errors = [
         ValidationError("SCHEMA-003", path, _location(error.absolute_path), error.message)
         for error in errors
     ]
+    if validation_errors:
+        return validation_errors
+    if schema_version == "authorization-trust/v1":
+        return _authorization_trust_errors(document, path)
+    return []
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Validate M2 frontend YAML contracts structurally."
+    )
+    parser.add_argument(
+        "--authorization-trust",
+        dest="authorization_trust",
+        action="append",
+        type=Path,
+        default=[],
+        metavar="PATH",
+        help="Validate an authorization-trust/v1 document; repeatable.",
     )
     parser.add_argument(
         "--input",
@@ -246,8 +293,8 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if not requested:
         print(
-            "ERROR CLI-001: specify at least one of --input, --unit-tests, "
-            "or --output",
+            "ERROR CLI-001: specify at least one of --authorization-trust, "
+            "--input, --unit-tests, or --output",
             file=sys.stderr,
         )
         return 2

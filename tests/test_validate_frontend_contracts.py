@@ -45,6 +45,20 @@ class FrontendContractValidatorTestCase(unittest.TestCase):
         )
         return path
 
+    def authorization_trust(self):
+        return {
+            "schemaVersion": "authorization-trust/v1",
+            "repositoryRoot": "/workspace/angular-customer-profile-consumer",
+            "authorizedSigners": [{
+                "principal": "functional-owner@example.invalid",
+                "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureKey",
+                "featureIds": ["FEAT-CUSTOMER-PROFILE-001"],
+                "decisionIds": ["DEC-CUSTOMER-PROFILE-001-01"],
+                "requirementIds": ["REQ-CUSTOMER-PROFILE-001-02"],
+            }],
+            "revokedKeyFingerprints": ["SHA256:FixtureFingerprint"],
+        }
+
     def run_cli(self, *arguments):
         return subprocess.run(
             [sys.executable, str(VALIDATOR_PATH), *map(str, arguments)],
@@ -268,6 +282,91 @@ class FrontendContractValidatorTestCase(unittest.TestCase):
         self.assertIn("READ-001", missing.stderr)
         self.assertEqual(2, no_arguments.returncode)
         self.assertIn("CLI-001", no_arguments.stderr)
+
+    def test_t17_accepts_valid_authorization_trust_policy(self):
+        for label, repository_root in (
+            ("workspace", "/workspace/angular-customer-profile-consumer"),
+            ("users", "/Users/example/labs/angular-customer-profile-consumer"),
+        ):
+            with self.subTest(label=label):
+                document = self.authorization_trust()
+                document["repositoryRoot"] = repository_root
+                result = self.run_cli(
+                    "--authorization-trust",
+                    self.write_yaml(f"authorization-trust-{label}.yaml", document),
+                )
+
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertIn("VALID", result.stdout)
+
+    def test_t18_rejects_invalid_authorization_trust_policy_fields(self):
+        cases = {
+            "missing": lambda document: document.pop("repositoryRoot"),
+            "extra": lambda document: document.update({"approvedBy": "name"}),
+            "empty-signers": lambda document: document.update({"authorizedSigners": []}),
+            "invalid-feature": lambda document: document["authorizedSigners"][0].update({"featureIds": ["*"]}),
+            "invalid-decision": lambda document: document["authorizedSigners"][0].update({"decisionIds": ["DEC-*"]}),
+            "invalid-requirement": lambda document: document["authorizedSigners"][0].update({"requirementIds": ["REQ-*"]}),
+            "wildcard-root": lambda document: document.update({"repositoryRoot": "/workspace/*"}),
+            "relative-root": lambda document: document.update({"repositoryRoot": "workspace/consumer"}),
+            "current-directory-root": lambda document: document.update({"repositoryRoot": "/workspace/./consumer"}),
+            "parent-directory-root": lambda document: document.update({"repositoryRoot": "/workspace/consumer/../other"}),
+            "duplicate-separator-root": lambda document: document.update({"repositoryRoot": "/workspace//consumer"}),
+            "private-key": lambda document: document["authorizedSigners"][0].update({"publicKey": "-----BEGIN OPENSSH PRIVATE KEY-----"}),
+            "invalid-version": lambda document: document.update({"schemaVersion": "authorization-trust/v2"}),
+        }
+        for label, mutate in cases.items():
+            with self.subTest(label=label):
+                document = self.authorization_trust()
+                mutate(document)
+                result = self.run_cli(
+                    "--authorization-trust",
+                    self.write_yaml(f"trust-{label}.yaml", document),
+                )
+                self.assertEqual(1, result.returncode)
+                expected_code = (
+                    "CONTRACT-002" if label == "invalid-version" else "SCHEMA-003"
+                )
+                self.assertIn(expected_code, result.stderr)
+
+    def test_t19_rejects_invalid_authorization_trust_principals(self):
+        cases = {
+            "empty": "",
+            "whitespace": " \t ",
+            "line-feed": "principal\nother",
+            "carriage-return": "principal\rother",
+            "control": "principal\x01other",
+            "wildcard": "principal-*",
+        }
+        for label, principal in cases.items():
+            with self.subTest(label=label):
+                document = self.authorization_trust()
+                document["authorizedSigners"][0]["principal"] = principal
+                result = self.run_cli(
+                    "--authorization-trust",
+                    self.write_yaml(f"trust-principal-{label}.yaml", document),
+                )
+                self.assertEqual(1, result.returncode)
+                self.assertIn("SCHEMA-003", result.stderr)
+
+    def test_t20_rejects_duplicate_authorization_trust_values(self):
+        cases = {
+            "feature": lambda document: document["authorizedSigners"][0].update({"featureIds": ["FEAT-CUSTOMER-PROFILE-001", "FEAT-CUSTOMER-PROFILE-001"]}),
+            "decision": lambda document: document["authorizedSigners"][0].update({"decisionIds": ["DEC-CUSTOMER-PROFILE-001-01", "DEC-CUSTOMER-PROFILE-001-01"]}),
+            "requirement": lambda document: document["authorizedSigners"][0].update({"requirementIds": ["REQ-CUSTOMER-PROFILE-001-02", "REQ-CUSTOMER-PROFILE-001-02"]}),
+            "fingerprint": lambda document: document.update({"revokedKeyFingerprints": ["SHA256:FixtureFingerprint", "SHA256:FixtureFingerprint"]}),
+            "principal": lambda document: document.update({"authorizedSigners": document["authorizedSigners"] * 2}),
+        }
+        for label, mutate in cases.items():
+            with self.subTest(label=label):
+                document = self.authorization_trust()
+                mutate(document)
+                result = self.run_cli(
+                    "--authorization-trust",
+                    self.write_yaml(f"trust-duplicate-{label}.yaml", document),
+                )
+                self.assertEqual(1, result.returncode)
+                self.assertIn("SCHEMA-003", result.stderr)
 
 
 if __name__ == "__main__":

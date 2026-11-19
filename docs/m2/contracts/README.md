@@ -11,6 +11,8 @@ Los contratos son:
 1. `frontend-ui-input/v1` para fuentes, alcance y contexto de consumidor.
 2. `frontend-unit-tests/v1` para casos unitarios independientes del stack.
 3. `frontend-ui-output/v1` para cambios, trazabilidad y evidencia real.
+4. `authorization-trust/v1` para la política auxiliar externa de principals,
+   claves públicas SSH, alcance y fingerprints revocados.
 
 Los ejemplos de [customer-profile](../examples/customer-profile/) son plantillas ilustrativas. Sus hashes de los archivos de entrada locales se calcularon desde bytes reales; los commits, versiones de consumidores y autorizaciones que requerirían repositorios externos se marcan como `not-verified`. Por ello no son manifiestos listos para ejecución.
 
@@ -60,6 +62,32 @@ Una fecha y un nombre de aprobador dentro del YAML no son evidencia suficiente. 
 - tag o release aprobado, resoluble a un commit y relacionado con el `DEC-*`.
 
 La evidencia debe existir, no estar revocada y autorizar el cambio exacto. Si no se puede consultar o verificar, el manifiesto permanece `BLOCKED`. No existe bypass.
+
+## 1.1 `authorization-trust/v1`
+
+### Propósito y límites
+
+`authorization-trust/v1` es una política auxiliar que declara, para un
+consumidor esperado, los principals, claves públicas SSH, features, decisiones
+y requisitos que cada principal puede autorizar. También declara fingerprints
+SSH revocados. Es un documento de custodia externa: no forma parte de
+`frontend-ui-input/v1`, no puede incluirse como entrada inventariada de una
+feature y el manifest no puede elegir libremente sus aprobadores.
+
+El contrato valida únicamente su forma: rutas absolutas con segmentos
+normalizados, IDs, unicidad, ausencia de comodines y formato declarado de clave pública SSH. No
+certifica la validez criptográfica de `publicKey`, la identidad del custodio,
+la firma de un commit, el alcance efectivo, la ubicación externa de la policy,
+la canonicalización efectiva de la ruta, la resolución de symlinks
+ni una revocación verificable. No admite claves privadas, secretos, nombres,
+emails o fechas como mecanismos de autorización por sí solos.
+
+La canonicalización efectiva, la resolución de symlinks y la frontera de
+confianza, junto con la verificación de ubicación externa, clave y principal
+confiables, firma, alcance y revocación, se incorporarán en incrementos
+posteriores. Por tanto,
+`authorization-trust/v1` no altera `SEM-AUTH-001` ni permite todavía declarar
+una decisión autorizada para PREPARE.
 
 ## 2. `frontend-unit-tests/v1`
 
