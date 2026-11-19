@@ -18,6 +18,32 @@ esta versión.
 
 La release `v0.3.0` permanece inmutable.
 
+## Roadmap y estado de implementación
+
+Estado reconciliado el 2026-11-19 contra el commit local `bfefae6` del
+framework y el laboratorio Angular `63d72e5`. Los estados se basan en la
+evidencia disponible en estos repositorios; la presencia de artefactos o
+pruebas unitarias aisladas no equivale por sí sola a cumplir un criterio de
+salida.
+
+| Milestone | Estado | Evidencia y límite actual |
+| --- | --- | --- |
+| MVP — Fundación y gobierno de Java | Implementado, sin criterio de salida demostrado | Existen instrucciones Java, orquestador, instalador y regresión del framework. No hay en el workspace evidencia ejecutable de un proyecto Spring Boot que rechace conjuntamente una violación arquitectónica y un cambio fuera de alcance. |
+| M1 — OpenAPI + DDD + Liquibase | Implementado, con evidencia histórica no reproducida en esta reconciliación | Las skills e instrucciones existen. Este README registra 40 pruebas históricas, incluyendo contrato HTTP y PostgreSQL incremental, pero el laboratorio Java y sus resultados no están presentes para reproducirlos aquí. Por ello no se declara el criterio de salida como demostrado en el estado actual. |
+| M2 — Requerimientos + HTML + pruebas | Parcial y bloqueado para ejecución | Existen contratos, validadores estructural/semántico/de alcance, flujo PREPARE/VERIFY, skills Angular/React y un laboratorio Angular real. Aún no hay manifiesto ejecutable, PREPARE, ancla externa independiente ni autorización que permita implementar `customer-profile`. No se modificó el consumidor. |
+| M3 — Performance + Arquitectura 4+1 | No iniciado | No se identificaron perfiles Gatling, vistas Mermaid ni ADR automatizados correspondientes. |
+| M3.1 — Functional Testing | No iniciado | No se identificó un proyecto Cypress ni evidencia de su batería ejecutable. |
+| M3.3 — Security Validation | No iniciado | No se identificó un reporte integral de seguridad ni automatización de las comprobaciones documentadas. |
+| M4 — Distribución corporativa y políticas de cliente | Parcial | El instalador versionado, locks, perfiles y regresión de instalación están implementados. No hay evidencia local de dos consumidores con políticas de cliente distintas consumiendo el mismo framework sin interferencia. |
+| M5 — Evolución multilenguaje | Parcial adelantado | Se conservan capacidades Angular y React como trabajo adelantado reutilizable. No existe evidencia de paquetes Python FastAPI ni de la reutilización transversal del gobierno sin imponer patrones Java. |
+
+La autorización SSH firmada es una capacidad experimental adicional de M2. No
+se considera por sí misma un criterio de salida del milestone; sin embargo, el
+manifiesto disponible tampoco satisface los controles M2 previos existentes:
+es ilustrativo, carece de PREPARE y de un ancla externa independiente, y la
+decisión local limita explícitamente la autorización a documentación y
+evidencia. Consultar [el reporte de cierre de la reconciliación](docs/m2/roadmap-reconciliation-2026-11-19.md).
+
 ## Componentes
 
 - AGENTS.md: contrato general de los agentes.
