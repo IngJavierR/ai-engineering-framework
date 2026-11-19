@@ -69,3 +69,13 @@ class BootstrapIntegrationTest(unittest.TestCase):
         proposal_json = json.loads((proposal / "proposal.json").read_text())
         self.assertTrue(proposal_json["requiresHumanReview"])
         self.assertFalse(proposal_json["remotePullRequestCreated"])
+
+    def test_different_existing_policy_requires_explicit_replacement(self):
+        self.assertEqual(self.run_bootstrap().returncode, 0)
+        replacement = json.loads(self.policy.read_text())
+        replacement["additionalRules"] = [{"id": "TEST-002", "statement": "Different policy."}]
+        self.policy.write_text(json.dumps(replacement), encoding="utf-8")
+        blocked = self.run_bootstrap()
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn("--replace-client-policy", blocked.stderr)
+        self.assertEqual(self.run_bootstrap("--replace-client-policy").returncode, 0)

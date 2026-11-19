@@ -75,7 +75,7 @@ def managed_conflicts(target: Path, capabilities: list[str]) -> list[Path]:
     return [target / relative for relative in files if (target / relative).exists()]
 
 
-def write_policy_and_state(target: Path, policy: dict[str, Any], version: str, capabilities: list[str], dry_run: bool) -> None:
+def write_policy_and_state(target: Path, policy: dict[str, Any], version: str, capabilities: list[str], dry_run: bool, replace_policy: bool) -> None:
     policy_path = target / POLICY_ROOT / f"{policy['clientId']}.json"
     state_path = target / STATE_PATH
     state = {
@@ -84,6 +84,8 @@ def write_policy_and_state(target: Path, policy: dict[str, Any], version: str, c
         "clientPolicy": str(policy_path.relative_to(target)),
         "capabilities": capabilities,
     }
+    if policy_path.exists() and load_json(policy_path) != policy and not replace_policy:
+        raise ValueError("Existing client policy differs; use --replace-client-policy after review")
     if dry_run:
         print(f"DRY RUN: would write {policy_path.relative_to(target)} and {state_path.relative_to(target)}")
         return
@@ -145,7 +147,7 @@ def bootstrap(args: argparse.Namespace) -> None:
         print("Explicitly replacing unmanaged artifacts: " + ", ".join(str(path.relative_to(target)) for path in conflicts))
     if args.dry_run:
         subprocess.run(installer_command(target, capabilities, upgrade, True), check=True)
-        write_policy_and_state(target, policy, version, capabilities, True)
+        write_policy_and_state(target, policy, version, capabilities, True, args.replace_client_policy)
         if args.proposal_dir:
             write_proposal(args.proposal_dir, target, version, capabilities, policy, True)
         return
@@ -159,7 +161,7 @@ def bootstrap(args: argparse.Namespace) -> None:
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(path, backup)
         subprocess.run(installer_command(target, capabilities, upgrade, False), check=True)
-        write_policy_and_state(target, policy, version, capabilities, False)
+        write_policy_and_state(target, policy, version, capabilities, False, args.replace_client_policy)
         if args.proposal_dir:
             write_proposal(args.proposal_dir, target, version, capabilities, policy, False)
     except Exception:
@@ -184,6 +186,7 @@ def main() -> None:
     parser.add_argument("--capability", action="append", default=[])
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--replace-framework-artifacts", action="store_true")
+    parser.add_argument("--replace-client-policy", action="store_true")
     parser.add_argument("--proposal-dir", type=Path)
     args = parser.parse_args()
     try:
