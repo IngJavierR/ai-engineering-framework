@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "client-policy/v1",
+  "clientId": "example-fastapi",
+  "enabledCapabilities": ["python-fastapi"],
+  "additionalRules": [{"id": "FASTAPI-001", "statement": "HTTP models must be typed Pydantic contracts."}],
+  "exceptions": []
+}

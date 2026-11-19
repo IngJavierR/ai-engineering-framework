@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "client-policy/v1",
+  "clientId": "example-react",
+  "enabledCapabilities": ["react"],
+  "additionalRules": [{"id": "REACT-001", "statement": "Accessible functional components are required."}],
+  "exceptions": []
+}

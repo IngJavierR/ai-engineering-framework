@@ -134,8 +134,8 @@ def bootstrap(args: argparse.Namespace) -> None:
     version = framework_version()
     if args.version != version:
         raise ValueError(f"Requested version {args.version} is unavailable from this source; available: {version}")
-    capabilities = args.capability or policy["enabledCapabilities"]
-    if capabilities != policy["enabledCapabilities"]:
+    capabilities = [] if args.profile else (args.capability or policy["enabledCapabilities"])
+    if not args.profile and capabilities != policy["enabledCapabilities"]:
         raise ValueError("Selected capabilities must match the authorized client policy")
     if args.profile and args.profile not in {"java-spring", "angular", "react", "python-fastapi"}:
         raise ValueError("Unknown stack profile")
@@ -148,14 +148,15 @@ def bootstrap(args: argparse.Namespace) -> None:
         raise ValueError(f"Existing unmanaged framework artifacts require --replace-framework-artifacts: {relative}")
     print(f"Framework version: {version}")
     print(f"Client policy: {policy['clientId']}")
-    print("Capabilities: " + ", ".join(capabilities))
+    print("Capabilities: " + ", ".join(capabilities or (args.profile,)))
     if conflicts:
         print("Explicitly replacing unmanaged artifacts: " + ", ".join(str(path.relative_to(target)) for path in conflicts))
     if args.dry_run:
         subprocess.run(installer_command(target, capabilities, upgrade, True, args.profile, args.migrate_stack), check=True)
-        write_policy_and_state(target, policy, version, capabilities, True, args.replace_client_policy)
+        state_capabilities = capabilities or [args.profile]
+        write_policy_and_state(target, policy, version, state_capabilities, True, args.replace_client_policy)
         if args.proposal_dir:
-            write_proposal(args.proposal_dir, target, version, capabilities, policy, True)
+            write_proposal(args.proposal_dir, target, version, state_capabilities, policy, True)
         return
 
     backup_root = None
@@ -167,9 +168,10 @@ def bootstrap(args: argparse.Namespace) -> None:
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(path, backup)
         subprocess.run(installer_command(target, capabilities, upgrade, False, args.profile, args.migrate_stack), check=True)
-        write_policy_and_state(target, policy, version, capabilities, False, args.replace_client_policy)
+        state_capabilities = capabilities or [args.profile]
+        write_policy_and_state(target, policy, version, state_capabilities, False, args.replace_client_policy)
         if args.proposal_dir:
-            write_proposal(args.proposal_dir, target, version, capabilities, policy, False)
+            write_proposal(args.proposal_dir, target, version, state_capabilities, policy, False)
     except Exception:
         if backup_root is not None:
             for backup in backup_root.rglob("*"):
