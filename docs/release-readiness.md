@@ -121,3 +121,46 @@ hasta resolver los tres bloqueantes anteriores. La siguiente decisión de
 dirección técnica debe aprobar o rechazar ese piloto, definir el propietario de
 la fuente/versionado remoto y aceptar explícitamente el modelo de autorización
 formal requerido.
+
+## Limpieza y consolidación
+
+**Resultado: CLEANUP_NOT_REQUIRED para archivos versionados.** Se revisaron
+209 archivos versionados en los tres repositorios: 85 en el framework, 61 en
+el laboratorio Java y 63 en el laboratorio Angular. No se eliminó ningún
+archivo versionado porque cada candidato documentado pertenece a una capacidad
+vigente, una prueba de regresión, una política/lock activa, un contrato/schema,
+una matriz de trazabilidad, un ADR o evidencia final de milestone.
+
+### Residuos regenerables eliminados
+
+Se eliminaron únicamente archivos no versionados e ignorados:
+
+| Repositorio | Residuos eliminados | Justificación |
+| --- | --- | --- |
+| Framework | `.DS_Store`, `__pycache__`, `.pyc`, `.bootstrap-test-tmp`, cachés pytest/egg-info de fixture FastAPI | Cachés de intérprete, fixtures temporales y metadatos del sistema, regenerables por pruebas. |
+| Java lab | `.DS_Store` y `target/` | Metadatos del sistema y salida Maven regenerable. |
+| Angular lab | `.DS_Store`, `.angular/`, `dist/`, videos Cypress | Cachés/builds/videos de ejecución regenerables; `node_modules/` se conserva como dependencia activa local no versionada. |
+
+### Elementos preservados deliberadamente
+
+- Fixtures React/FastAPI bajo `tests/fixtures/`: demuestran y validan M5.
+- Contratos M2, schemas, skills, agentes, instrucciones, validadores,
+  instalador y bootstrap: forman parte del producto distribuible.
+- Locks, políticas de cliente y propuestas locales: sostienen M4 y la
+  reproducibilidad del consumo.
+- Reportes M2–M5, matrices, ADR y vistas 4+1: evidencia histórica vigente,
+  no documentación provisional.
+
+No se corrigieron referencias: la búsqueda de referencias confirmó que los
+ejemplos, outputs y mockups siguen cubiertos por validadores o contratos.
+
+### Integridad posterior
+
+- Framework: `unittest discover -s tests -v` — PASS, 126 pruebas.
+- Java: `mvn -q -DskipTests compile` — PASS; lock y política vigentes.
+- Angular: typecheck app/tests y build — PASS; lock transversal sin
+  `java-base` y política vigente.
+- Perfiles `java-spring`, `angular`, `react` y `python-fastapi` — PASS en
+  resolución; no se afectaron políticas, locks ni migraciones.
+- Los tres worktrees quedaron limpios después de retirar los artefactos
+  generados por estas validaciones.
