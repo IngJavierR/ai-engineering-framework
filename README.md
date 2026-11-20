@@ -12,9 +12,9 @@ y clientes.
 
 ## Estado
 
-Versión de trabajo: 0.4.0
-Estado: Experimental. No existe un tag, release ni artefacto publicado para
-esta versión.
+Versión candidata de trabajo: `0.5.0-rc.1`.
+Estado: Release candidate local. No existe todavía un tag, GitHub Release ni
+artefacto publicado para esta versión.
 
 La release `v0.3.0` permanece inmutable.
 
@@ -34,7 +34,7 @@ salida.
 | M3 — Performance + Arquitectura 4+1 | Implementado en modalidad Development / Lab | El laboratorio Java ejecutó Gatling contra Spring Boot y PostgreSQL locales con perfiles smoke, baseline y stress; generó informes HTML y documentó vistas 4+1 Mermaid y ADR. No constituye certificación de capacidad productiva. |
 | M3.1 — Functional Testing | Implementado en modalidad Development / Lab | El laboratorio Angular ejecutó 4 escenarios Cypress headless contra `customer-profile`, con captura de artefactos locales ignorados por Git. La suite conserva Playwright como capacidad independiente. |
 | M3.3 — Security Validation | Implementado en modalidad Development / Lab | Se completaron reportes de seguridad Markdown y JSON para los laboratorios Angular y Java, sustentados por evidencia local y preparados para validación manual. No constituyen certificación formal. |
-| M4 — Distribución corporativa y políticas de cliente | Implementado en modalidad local demostrable | Java y Angular consumen la misma versión `0.4.0` con locks y políticas aisladas; bootstrap, idempotencia, conflictos y propuesta local de actualización fueron probados sin crear PR remoto. |
+| M4 — Distribución corporativa y políticas de cliente | Implementado en modalidad local demostrable | Java y Angular consumen la misma línea de framework con locks y políticas aisladas; bootstrap, idempotencia, conflictos y propuesta local de actualización fueron probados sin crear PR remoto. |
 | M5 — Evolución multilenguaje | Implementado en modalidad de piloto | Gobierno transversal, perfiles aislados y fixtures React/FastAPI demostrados; consultar la evaluación de preparación para límites de distribución. |
 
 La autorización SSH firmada es una capacidad experimental adicional de M2. No
@@ -84,8 +84,8 @@ Estado: Disponible para validación en el MVP.
 
 ## Capacidades disponibles
 
-El repositorio contiene las siguientes capacidades Java. Son políticas
-reutilizables del framework, no componentes de una aplicación.
+El repositorio contiene capacidades transversales y específicas por stack. Son
+políticas reutilizables del framework, no componentes de una aplicación.
 
 ### Instrucciones instalables
 
@@ -123,15 +123,16 @@ ocho archivos gestionados. El orquestador, `AGENTS.md` y
 `.github/copilot-instructions.md` pertenecen al mantenimiento del
 framework y no se copian a los consumidores.
 
-La distribución no incorpora políticas de cliente ni quality gates
-generales. `automatedQualityGates` permanece en `false`.
+La distribución incorpora locks, bootstrap y políticas aisladas del consumidor,
+pero no quality gates generales remotos. `automatedQualityGates` permanece en
+`false`.
 
 ## Distribución
 
-El instalador requiere un repositorio Git destino y una fuente del
-framework sin cambios pendientes. Java base se instala siempre y las
-capacidades frontend son opt-in explícito. No se infiere el stack desde
-los archivos del consumidor.
+El instalador requiere un repositorio Git destino y una fuente del framework
+sin cambios pendientes. Los locks heredados conservan `java-base`; los perfiles
+nuevos usan `universal-governance` y seleccionan explícitamente el stack. No se
+infiere el stack desde los archivos del consumidor.
 
 ### Capacidades y dependencias
 
@@ -167,7 +168,7 @@ política JSON autorizada y un repositorio Git destino.
 ```bash
 python3 tools/bootstrap.py \
   --target ../consumer-project \
-  --version 0.4.0 \
+  --version 0.5.0-rc.1 \
   --client-policy docs/m4/examples/client-a-java-policy.json \
   --dry-run
 ```
@@ -263,7 +264,7 @@ gestionada.
 
 ### Lock, reinstalación y upgrade
 
-La versión experimental 0.4.0 registra `.ai-framework.lock.json` con el
+La versión candidata `0.5.0-rc.1` registra `.ai-framework.lock.json` con el
 schema `capability-lock/v1`, identidad del framework, versión, URL de fuente,
 commit, lista determinista de capacidades resueltas y hashes SHA-256 por
 artefacto.
@@ -366,7 +367,7 @@ describen el progreso del trabajo y no reemplazan la evidencia anterior.
 
 La suite del instalador cubre instalación, repetición, dry-run, locks,
 upgrades verificables, symlinks y recuperación ante fallos manejables. La
-regresión de distribución 0.4.0 se ejecuta contra repositorios temporales;
+regresión de distribución de la release candidate se ejecuta contra repositorios temporales;
 no certifica la ejecución funcional de skills en un consumidor real.
 
 ## Limitaciones y validación funcional futura

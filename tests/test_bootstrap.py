@@ -37,8 +37,14 @@ class BootstrapIntegrationTest(unittest.TestCase):
     def run_bootstrap(self, *extra):
         return subprocess.run([
             sys.executable, str(BOOTSTRAP), "--target", str(self.target),
-            "--version", "0.4.0", "--client-policy", str(self.policy), *extra,
+            "--version", self.framework_version(), "--client-policy", str(self.policy), *extra,
         ], cwd=ROOT, capture_output=True, text=True)
+
+    def framework_version(self):
+        for line in (ROOT / "framework.yaml").read_text(encoding="utf-8").splitlines():
+            if line.startswith("  version:"):
+                return line.split(":", 1)[1].strip()
+        self.fail("framework version is unavailable")
 
     def test_bootstrap_is_idempotent_and_preserves_isolated_policy(self):
         first = self.run_bootstrap()
