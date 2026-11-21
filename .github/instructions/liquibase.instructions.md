@@ -1,6 +1,6 @@
 
 ---
-applyTo: "**/db/**,**/database/**,**/liquibase/**,**/*changelog*.xml,**/persistence/**"
+applyTo: "**/*.java,**/src/main/resources/db/**,**/src/main/resources/database/**,**/src/main/resources/liquibase/**,**/src/main/resources/**/*changelog*.xml"
 ---
 
 # Database Structural Change Governance

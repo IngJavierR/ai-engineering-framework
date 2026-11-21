@@ -53,13 +53,13 @@ def framework_version() -> str:
     raise ValueError("Framework version is unavailable")
 
 
-def installer_command(target: Path, capabilities: list[str], upgrade: bool, dry_run: bool, profile: str | None, migrate_stack: bool) -> list[str]:
+def installer_command(target: Path, capabilities: list[str], upgrade: bool, dry_run: bool, profiles: list[str], migrate_stack: bool) -> list[str]:
     command = [sys.executable, str(ROOT / "tools" / "install.py"), "--target", str(target)]
     if upgrade:
         command.append("--upgrade")
     if dry_run:
         command.append("--dry-run")
-    if profile:
+    for profile in profiles:
         command.extend(("--profile", profile))
     if migrate_stack:
         command.append("--migrate-stack")
@@ -134,11 +134,10 @@ def bootstrap(args: argparse.Namespace) -> None:
     version = framework_version()
     if args.version != version:
         raise ValueError(f"Requested version {args.version} is unavailable from this source; available: {version}")
-    capabilities = [] if args.profile else (args.capability or policy["enabledCapabilities"])
-    if not args.profile and capabilities != policy["enabledCapabilities"]:
+    profiles = args.profile
+    capabilities = [] if profiles else (args.capability or policy["enabledCapabilities"])
+    if not profiles and capabilities != policy["enabledCapabilities"]:
         raise ValueError("Selected capabilities must match the authorized client policy")
-    if args.profile and args.profile not in {"java-spring", "angular", "react", "python-fastapi"}:
-        raise ValueError("Unknown stack profile")
 
     lock = target / ".ai-framework.lock.json"
     upgrade = lock.exists()
@@ -148,12 +147,12 @@ def bootstrap(args: argparse.Namespace) -> None:
         raise ValueError(f"Existing unmanaged framework artifacts require --replace-framework-artifacts: {relative}")
     print(f"Framework version: {version}")
     print(f"Client policy: {policy['clientId']}")
-    print("Capabilities: " + ", ".join(capabilities or (args.profile,)))
+    print("Capabilities: " + ", ".join(capabilities or tuple(profiles)))
     if conflicts:
         print("Explicitly replacing unmanaged artifacts: " + ", ".join(str(path.relative_to(target)) for path in conflicts))
     if args.dry_run:
-        subprocess.run(installer_command(target, capabilities, upgrade, True, args.profile, args.migrate_stack), check=True)
-        state_capabilities = capabilities or [args.profile]
+        subprocess.run(installer_command(target, capabilities, upgrade, True, profiles, args.migrate_stack), check=True)
+        state_capabilities = capabilities or profiles
         write_policy_and_state(target, policy, version, state_capabilities, True, args.replace_client_policy)
         if args.proposal_dir:
             write_proposal(args.proposal_dir, target, version, state_capabilities, policy, True)
@@ -167,8 +166,8 @@ def bootstrap(args: argparse.Namespace) -> None:
                 backup = backup_root / path.relative_to(target)
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(path, backup)
-        subprocess.run(installer_command(target, capabilities, upgrade, False, args.profile, args.migrate_stack), check=True)
-        state_capabilities = capabilities or [args.profile]
+        subprocess.run(installer_command(target, capabilities, upgrade, False, profiles, args.migrate_stack), check=True)
+        state_capabilities = capabilities or profiles
         write_policy_and_state(target, policy, version, state_capabilities, False, args.replace_client_policy)
         if args.proposal_dir:
             write_proposal(args.proposal_dir, target, version, state_capabilities, policy, False)
@@ -192,7 +191,7 @@ def main() -> None:
     parser.add_argument("--version", required=True)
     parser.add_argument("--client-policy", required=True, type=Path)
     parser.add_argument("--capability", action="append", default=[])
-    parser.add_argument("--profile", choices=["java-spring", "angular", "react", "python-fastapi"])
+    parser.add_argument("--profile", choices=["java-spring", "angular", "react", "python-fastapi"], action="append", default=[])
     parser.add_argument("--migrate-stack", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--replace-framework-artifacts", action="store_true")

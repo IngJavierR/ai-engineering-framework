@@ -707,12 +707,20 @@ def replace_staged_files(
         cleanup_backups(backups, lock_backup)
 
 
-def install(target, dry_run=False, upgrade=False, capabilities=(), profile=None,
-            migrate_stack=False):
-    if profile is not None and profile not in STACK_PROFILES:
-        raise ValueError(f"Unknown stack profile: {profile}")
-    requested = (profile,) if profile is not None else capabilities
-    base = UNIVERSAL_CAPABILITY if profile is not None else BASE_CAPABILITY
+def install(target, dry_run=False, upgrade=False, capabilities=(), profiles=(),
+            migrate_stack=False, profile=None):
+    if profile is not None:
+        if profiles:
+            raise ValueError("Use profile or profiles, not both")
+        profiles = (profile,)
+    if not isinstance(profiles, (list, tuple)):
+        raise ValueError("Requested profiles must be a list")
+    if any(profile not in STACK_PROFILES for profile in profiles):
+        raise ValueError("Unknown stack profile")
+    if len(profiles) != len(set(profiles)):
+        raise ValueError("Duplicate requested stack profile")
+    requested = tuple(profiles) + tuple(capabilities)
+    base = UNIVERSAL_CAPABILITY if profiles else BASE_CAPABILITY
     resolved, resolved_files = resolve_capabilities(requested, base_capability=base)
     target = validate_target(target)
 
@@ -767,6 +775,7 @@ def install(target, dry_run=False, upgrade=False, capabilities=(), profile=None,
             raise ValueError("Cannot upgrade without an existing framework lock")
         validate_new_file_conflicts(target, {}, files)
 
+    print("Requested profiles: " + ", ".join(profiles or ("none",)))
     print("Requested capabilities: " + ", ".join(capabilities or ("none",)))
     print("Resolved capabilities: " + ", ".join(resolved))
     print("Resolved files:")
@@ -834,7 +843,7 @@ def main():
             "is blocked until B.4B.2."
         ),
     )
-    parser.add_argument("--profile", choices=sorted(STACK_PROFILES))
+    parser.add_argument("--profile", choices=sorted(STACK_PROFILES), action="append", default=[])
     parser.add_argument("--migrate-stack", action="store_true")
     args = parser.parse_args()
 

@@ -23,6 +23,14 @@ class ProfileTest(unittest.TestCase):
             self.assertIn(installer.UNIVERSAL_CAPABILITY, resolved)
             self.assertNotIn(installer.BASE_CAPABILITY, resolved)
 
+    def test_multistack_profiles_deduplicate_and_do_not_pull_java(self):
+        resolved, files = installer.resolve_capabilities(
+            ("angular", "python-fastapi"), base_capability=installer.UNIVERSAL_CAPABILITY
+        )
+        self.assertEqual(15, len(files))
+        self.assertNotIn(installer.BASE_CAPABILITY, resolved)
+        self.assertEqual(1, resolved.count("security-validation"))
+
     def test_profile_installations_are_idempotent_and_isolated(self):
         fixture_root = ROOT / ".bootstrap-test-tmp"
         fixture_root.mkdir(exist_ok=True)

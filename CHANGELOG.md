@@ -4,6 +4,32 @@ Los cambios se registran por versión preparada para publicación o
 publicada. Una entrada sin fecha no implica que exista un tag, release
 ni artefacto publicado.
 
+## [0.6.0-rc.1] - Release candidate local, no publicada
+
+Mejoras de ergonomía y seguridad de instalación posteriores a `v0.5.0-rc.1`.
+No existe tag, release ni artefacto publicado para esta versión.
+
+### Añadido
+
+- Instalación multi-stack mediante perfiles repetibles y combinación explícita
+  de perfiles/capacidades, sin introducir Java en Angular, React o FastAPI.
+- `make_anchor.py`, `new_feature.py` y `refresh_manifest.py` para preparar
+  insumos M2, hashes, metadatos de consumidor y anchors verificables.
+- Quickstart de Copilot con secuencia M2, dependencias de validación, prompts y
+  explicación de `VERIFY`.
+
+### Corregido
+
+- Globs de instrucciones Java limitados a Java y recursos Java para evitar que
+  rutas comunes de Python/TypeScript reciban gobierno Java.
+- La unión aditiva de perfiles durante upgrade conserva capacidades existentes;
+  la eliminación sigue requiriendo migración explícita de stack.
+
+### Diferido
+
+- La verificación criptográfica de `authorizedDecisions` permanece fail-closed
+  (`SEM-AUTH-001`) hasta disponer de una política de confianza y firmas reales.
+
 ## [0.5.0-rc.1] - Release candidate local, no publicada
 
 La primera release candidate reúne las capacidades MVP–M5 para un piloto

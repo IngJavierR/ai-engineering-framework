@@ -1,6 +1,6 @@
 
 ---
-applyTo: "**/openapi/**,**/api/**,**/*openapi*.yaml,**/*openapi*.yml,**/*openapi*.json"
+applyTo: "**/*.java,**/src/main/resources/openapi/**,**/src/main/resources/**/*openapi*.yaml,**/src/main/resources/**/*openapi*.yml,**/src/main/resources/**/*openapi*.json"
 ---
 
 # OpenAPI and DDD Engineering Standards

@@ -12,7 +12,7 @@ y clientes.
 
 ## Estado
 
-Versión candidata de trabajo: `0.5.0-rc.1`.
+Versión candidata de trabajo: `0.6.0-rc.1`.
 Estado: Release candidate local. No existe todavía un tag, GitHub Release ni
 artefacto publicado para esta versión.
 
@@ -52,6 +52,9 @@ revisión humana, pero no para distribución corporativa general ni release
 publicada. Consultar [release-readiness.md](docs/release-readiness.md) para la
 matriz de madurez, riesgos bloqueantes, condiciones operativas y decisión de
 dirección pendiente.
+
+Para el flujo asistido de frontend desde Copilot, consultar
+[quickstart-copilot.md](docs/quickstart-copilot.md).
 
 ## Componentes
 
