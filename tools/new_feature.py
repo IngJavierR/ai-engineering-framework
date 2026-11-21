@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def main() -> int:
@@ -18,49 +21,15 @@ def main() -> int:
     if output.exists() and any(output.iterdir()):
         raise SystemExit("ERROR: output directory must be absent or empty")
     output.mkdir(parents=True, exist_ok=True)
-    prefix = args.feature_id.replace("FEAT-", "").replace("-", "_").upper()
-    (output / "specification.md").write_text(f"# {args.feature_id}\n\nDescribe confirmed requirements here.\n", encoding="utf-8")
-    (output / "mockup.html").write_text("<!doctype html><html><body><main></main></body></html>\n", encoding="utf-8")
-    (output / "unit-tests.yaml").write_text(f"schemaVersion: frontend-unit-tests/v1\nfeatureId: {args.feature_id}\ncases: []\n", encoding="utf-8")
-    manifest = f'''schemaVersion: frontend-ui-input/v1
-featureId: {args.feature_id}
-templateStatus: illustrative-not-ready-for-execution
-title: {args.feature_id} template
-consumer:
-  id: replace-consumer-id
-  stack: {args.stack}
-  repositoryRoot: {args.consumer}
-  verificationStatus: not-verified
-  detection:
-    manifestPath: package.json
-    lockfilePath: package-lock.json
-    declaredVersions: {{"{args.stack if args.stack == "react" else "angularCore"}": not-verified, typescript: not-verified}}
-    resolvedVersions: {{"{args.stack if args.stack == "react" else "angularCore"}": not-verified, typescript: not-verified}}
-    detectionMethod: not-executed
-    reason: Complete after reviewing consumer metadata.
-baseline:
-  commit: not-verified
-  requiredInitialWorkingTreeState: clean
-  snapshotPath: evidence/scope/initial-git-snapshot.json
-  verificationStatus: not-verified
-  reason: Complete after checking the consumer repository.
-scope:
-  allowedPaths: []
-  protectedPaths: []
-  deletionPolicy: {{allowed: false}}
-functionalSpecification: {{id: SPEC-{prefix}-01, path: specification.md, sha256: sha256:{"0" * 64}}}
-mockups: [{{id: SCR-{prefix}-01-01, title: Replace title, path: mockup.html, sha256: sha256:{"0" * 64}, conceptualComponentIds: []}}]
-assets: []
-apiContract: {{status: not-applicable, reason: Define if an API contract applies.}}
-requirements: {{confirmed: [], ambiguities: [], inferences: [], authorizedDecisions: []}}
-conceptualComponents: []
-unitTests: {{path: unit-tests.yaml, sha256: sha256:{"0" * 64}, caseIds: []}}
-files:
-  - {{path: specification.md, sha256: sha256:{"0" * 64}}}
-  - {{path: mockup.html, sha256: sha256:{"0" * 64}}}
-  - {{path: unit-tests.yaml, sha256: sha256:{"0" * 64}}}
-'''
+    template = ROOT / "docs" / "m2" / "examples" / "customer-profile"
+    for name in ("specification.md", "mockup.html", "unit-tests.yaml", f"{args.stack}.input.yaml"):
+        shutil.copy2(template / name, output / name)
+    manifest = (output / f"{args.stack}.input.yaml").read_text(encoding="utf-8")
+    manifest = manifest.replace("FEAT-CUSTOMER-PROFILE-001", args.feature_id)
+    manifest = manifest.replace("../../../../labs/angular-customer-profile-consumer", args.consumer)
     (output / f"{args.stack}.input.yaml").write_text(manifest, encoding="utf-8")
+    unit = (output / "unit-tests.yaml").read_text(encoding="utf-8").replace("FEAT-CUSTOMER-PROFILE-001", args.feature_id)
+    (output / "unit-tests.yaml").write_text(unit, encoding="utf-8")
     print(f"Created illustrative M2 templates in {output}")
     return 0
 

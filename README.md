@@ -215,7 +215,13 @@ un consumidor los solicite de forma explícita y compatible.
 ```bash
 python3 tools/install.py --target ../consumer-project --profile react
 python3 tools/install.py --target ../consumer-project --profile python-fastapi
+python3 tools/install.py --target ../monorepo --profile angular --profile python-fastapi --dry-run
 ```
+
+`--profile` puede repetirse y puede combinarse con `--capability`; el
+instalador resuelve la unión, deduplica artefactos y falla ante perfiles o
+capacidades desconocidos. Los perfiles no Java parten de gobierno transversal
+y nunca arrastran `java-base`.
 
 Una migración desde un lock heredado basado en `java-base` requiere
 `--migrate-stack`. El instalador valida hashes existentes, muestra los

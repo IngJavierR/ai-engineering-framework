@@ -4,7 +4,14 @@
 
 M2 define contratos para transformar una especificación funcional, un mockup HTML autocontenido y casos YAML de pruebas unitarias en implementaciones verificables para consumidores Angular y React. M2 se limita a pruebas unitarias de frontend.
 
-M2 permite DOM simulado, Angular TestBed y React Testing Library cuando sean compatibles con el consumidor. M2 no incluye navegador real, navegación E2E, Cypress, HTTP externo, automatización funcional, SAST, DAST ni pruebas de seguridad. Cypress pertenece a M3.1 y las pruebas de seguridad pertenecen a M3.2.
+M2 permite DOM simulado, Angular TestBed y React Testing Library cuando sean compatibles con el consumidor. M2 no incluye navegador real, navegación E2E, Cypress, HTTP externo, automatización funcional, SAST, DAST ni pruebas de seguridad. Cypress pertenece a M3.1 y las pruebas de seguridad pertenecen a M3.3.
+
+Para crear y preparar insumos use `tools/new_feature.py` y
+`tools/refresh_manifest.py`; consultar [quickstart de Copilot](../../quickstart-copilot.md).
+
+Las decisiones autorizadas permanecen fail-closed: mientras no se configure
+evidencia verificable con una política de confianza real, una ambigüedad que
+bloquea requisitos debe eliminarse o la ejecución queda bloqueada.
 
 Los contratos son:
 

@@ -31,6 +31,13 @@ class ProfileTest(unittest.TestCase):
         self.assertNotIn(installer.BASE_CAPABILITY, resolved)
         self.assertEqual(1, resolved.count("security-validation"))
 
+    def test_profile_and_capability_union_uses_universal_base(self):
+        resolved, _ = installer.resolve_capabilities(
+            ("angular", "fastapi-development"), base_capability=installer.UNIVERSAL_CAPABILITY
+        )
+        self.assertIn("fastapi-development", resolved)
+        self.assertNotIn(installer.BASE_CAPABILITY, resolved)
+
     def test_profile_installations_are_idempotent_and_isolated(self):
         fixture_root = ROOT / ".bootstrap-test-tmp"
         fixture_root.mkdir(exist_ok=True)

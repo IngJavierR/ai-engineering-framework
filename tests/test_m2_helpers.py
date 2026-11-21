@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ANCHOR = ROOT / "tools" / "make_anchor.py"
+SCAFFOLD = ROOT / "tools" / "new_feature.py"
 
 
 class M2HelperTest(unittest.TestCase):
@@ -42,3 +43,12 @@ class M2HelperTest(unittest.TestCase):
             self.assertEqual("sha256:" + hashlib.sha256(receipt.read_bytes()).hexdigest(), anchor["receiptSha256"])
             blocked = subprocess.run(["python3", str(ANCHOR), "--receipt", str(receipt), "--output", str(receipt.parent / "bad.json")], capture_output=True, text=True)
             self.assertNotEqual(0, blocked.returncode)
+
+    def test_new_feature_creates_illustrative_structural_templates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "feature"
+            result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "angular", "--consumer", "../consumer", "--out", str(output)], capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            manifest = (output / "angular.input.yaml").read_text(encoding="utf-8")
+            self.assertIn("illustrative-not-ready-for-execution", manifest)
+            self.assertIn("FEAT-SAMPLE-001", manifest)
