@@ -68,14 +68,15 @@ def installer_command(target: Path, capabilities: list[str], upgrade: bool, dry_
     return command
 
 
-def managed_conflicts(target: Path, capabilities: list[str]) -> list[Path]:
+def managed_conflicts(target: Path, capabilities: list[str], profiles: list[str]) -> list[Path]:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("framework_installer", ROOT / "tools" / "install.py")
     assert spec and spec.loader
     installer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(installer)
-    _, files = installer.resolve_capabilities(capabilities)
+    base = installer.UNIVERSAL_CAPABILITY if profiles else installer.BASE_CAPABILITY
+    _, files = installer.resolve_capabilities(tuple(profiles) + tuple(capabilities), base_capability=base)
     return [target / relative for relative in files if (target / relative).exists()]
 
 
@@ -135,13 +136,13 @@ def bootstrap(args: argparse.Namespace) -> None:
     if args.version != version:
         raise ValueError(f"Requested version {args.version} is unavailable from this source; available: {version}")
     profiles = args.profile
-    capabilities = [] if profiles else (args.capability or policy["enabledCapabilities"])
+    capabilities = args.capability or ([] if profiles else policy["enabledCapabilities"])
     if not profiles and capabilities != policy["enabledCapabilities"]:
         raise ValueError("Selected capabilities must match the authorized client policy")
 
     lock = target / ".ai-framework.lock.json"
     upgrade = lock.exists()
-    conflicts = [] if upgrade else managed_conflicts(target, capabilities)
+    conflicts = [] if upgrade else managed_conflicts(target, capabilities, profiles)
     if conflicts and not args.replace_framework_artifacts:
         relative = ", ".join(str(path.relative_to(target)) for path in conflicts)
         raise ValueError(f"Existing unmanaged framework artifacts require --replace-framework-artifacts: {relative}")

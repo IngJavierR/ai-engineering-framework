@@ -12,7 +12,8 @@ No existe tag, release ni artefacto publicado para esta versión.
 ### Añadido
 
 - Instalación multi-stack mediante perfiles repetibles y combinación explícita
-  de perfiles/capacidades, sin introducir Java en Angular, React o FastAPI.
+  de perfiles/capacidades también desde bootstrap, sin introducir Java en
+  Angular, React o FastAPI.
 - `make_anchor.py`, `new_feature.py` y `refresh_manifest.py` para preparar
   insumos M2, hashes, metadatos de consumidor y anchors verificables.
 - Quickstart de Copilot con secuencia M2, dependencias de validación, prompts y

@@ -85,3 +85,11 @@ class BootstrapIntegrationTest(unittest.TestCase):
         self.assertNotEqual(blocked.returncode, 0)
         self.assertIn("--replace-client-policy", blocked.stderr)
         self.assertEqual(self.run_bootstrap("--replace-client-policy").returncode, 0)
+
+    def test_profile_and_capability_are_resolved_together(self):
+        result = self.run_bootstrap("--profile", "angular", "--capability", "fastapi-development")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lock = json.loads((self.target / ".ai-framework.lock.json").read_text())
+        self.assertIn("angular", lock["capabilities"])
+        self.assertIn("fastapi-development", lock["capabilities"])
+        self.assertNotIn("java-base", lock["capabilities"])
