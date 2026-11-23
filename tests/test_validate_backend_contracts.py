@@ -34,11 +34,11 @@ class BackendContractValidatorTest(unittest.TestCase):
     def write_manifest(self, document):
         (self.root / "backend.input.yaml").write_text(yaml.safe_dump(document, sort_keys=False))
 
-    def run_validator(self):
-        return subprocess.run([sys.executable, str(VALIDATOR), "--input", str(self.root / "backend.input.yaml"), "--workspace-root", str(self.root)], text=True, capture_output=True)
+    def run_validator(self, *extra):
+        return subprocess.run([sys.executable, str(VALIDATOR), "--input", str(self.root / "backend.input.yaml"), *extra], text=True, capture_output=True)
 
     def test_valid_example(self):
-        result = self.run_validator()
+        result = self.run_validator("--workspace-root", str(self.root))
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("VALID", result.stdout)
 
@@ -49,7 +49,7 @@ class BackendContractValidatorTest(unittest.TestCase):
         manifest = self.manifest()
         manifest["testCases"]["sha256"] = "sha256:" + hashlib.sha256((self.root / "test-cases.yaml").read_bytes()).hexdigest()
         self.write_manifest(manifest)
-        result = self.run_validator()
+        result = self.run_validator("--workspace-root", str(self.root))
         self.assertEqual(1, result.returncode)
         self.assertIn("BE-TEST-002", result.stderr)
 
@@ -57,6 +57,26 @@ class BackendContractValidatorTest(unittest.TestCase):
         manifest = self.manifest()
         manifest["database"]["migrationTool"] = "alembic"
         self.write_manifest(manifest)
-        result = self.run_validator()
+        result = self.run_validator("--workspace-root", str(self.root))
         self.assertEqual(2, result.returncode)
         self.assertIn("BE-DB-003", result.stderr)
+
+    def test_consumer_root_is_default_and_workspace_root_is_explicit_override(self):
+        consumer = self.root / "consumer"
+        (consumer / "backend/db/changelog").mkdir(parents=True)
+        (consumer / "backend/db/changelog/db.changelog-master.xml").write_bytes((EXAMPLE / "backend/db/changelog/db.changelog-master.xml").read_bytes())
+        manifest = self.manifest()
+        manifest["consumer"]["repositoryRoot"] = "consumer"
+        self.write_manifest(manifest)
+        (self.root / "backend/db/changelog/db.changelog-master.xml").unlink()
+        self.assertEqual(0, self.run_validator().returncode)
+        overridden = self.run_validator("--workspace-root", str(self.root))
+        self.assertEqual(1, overridden.returncode)
+        self.assertIn("BE-DB-001", overridden.stderr)
+
+    def test_preflight_allows_absent_changelog_but_verify_requires_it(self):
+        (self.root / "backend/db/changelog/db.changelog-master.xml").unlink()
+        self.assertEqual(0, self.run_validator("--phase", "preflight").returncode)
+        verified = self.run_validator("--phase", "verify")
+        self.assertEqual(1, verified.returncode)
+        self.assertIn("BE-DB-001", verified.stderr)

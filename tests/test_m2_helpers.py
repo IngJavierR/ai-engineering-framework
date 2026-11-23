@@ -52,3 +52,15 @@ class M2HelperTest(unittest.TestCase):
             manifest = (output / "angular.input.yaml").read_text(encoding="utf-8")
             self.assertIn("illustrative-not-ready-for-execution", manifest)
             self.assertIn("FEAT-SAMPLE-001", manifest)
+
+    def test_new_backend_feature_replaces_consumer_and_creates_missing_changelog(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            consumer = root / "consumer"
+            consumer.mkdir()
+            output = root / "feature"
+            result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "python-fastapi", "--consumer", str(consumer), "--out", str(output)], capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            manifest = (output / "backend.input.yaml").read_text(encoding="utf-8")
+            self.assertIn(f"repositoryRoot: {consumer}", manifest)
+            self.assertTrue((consumer / "backend/db/changelog/db.changelog-master.xml").is_file())

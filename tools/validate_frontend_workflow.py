@@ -152,11 +152,18 @@ def receipt_paths(evidence: Path, execution_id: str) -> tuple[Path, Path]:
 
 
 def consumer_identity(manifest: dict[str, Any], consumer: Path) -> dict[str, str]:
+    consumer_data = manifest["consumer"]
     return {
-        "id": manifest["consumer"]["id"],
+        "id": consumer_data.get("id", consumer_data["repositoryRoot"]),
         "root": str(consumer.resolve()),
-        "stack": manifest["consumer"]["stack"],
+        "stack": consumer_data["stack"] if "stack" in consumer_data else manifest["stack"],
     }
+
+
+def manifest_inputs(manifest: dict[str, Any]) -> dict[str, str]:
+    if "files" in manifest:
+        return {item["path"]: item["sha256"] for item in manifest["files"]}
+    return {manifest["openapi"]["path"]: manifest["openapi"]["sha256"], manifest["testCases"]["path"]: manifest["testCases"]["sha256"]}
 
 
 def matches_manifest_consumer(manifest_path: Path, manifest: dict[str, Any], consumer: Path) -> bool:
@@ -167,11 +174,11 @@ def matches_manifest_consumer(manifest_path: Path, manifest: dict[str, Any], con
     return declared == consumer.resolve()
 
 
-def prepare(manifest_path: Path, consumer: Path, workspace_root: Path, evidence: Path) -> tuple[WorkflowResult, Path | None]:
+def prepare(manifest_path: Path, consumer: Path, workspace_root: Path, evidence: Path, validator=validate_input) -> tuple[WorkflowResult, Path | None]:
     phases: list[Phase] = []
     if not external_to_consumer(evidence, consumer):
         return blocked("WF-EVIDENCE-001", "evidence directory must be outside the consumer repository", phases), None
-    document_or_result = validate_input(manifest_path, workspace_root, phases)
+    document_or_result = validator(manifest_path, workspace_root, phases)
     if isinstance(document_or_result, WorkflowResult):
         return document_or_result, None
     document = document_or_result
@@ -194,7 +201,7 @@ def prepare(manifest_path: Path, consumer: Path, workspace_root: Path, evidence:
             "receiptVersion": RECEIPT_VERSION,
             "executionId": execution_id,
             "manifest": {"path": str(manifest_path.resolve()), "sha256": digest(manifest_path)},
-            "inputs": {item["path"]: item["sha256"] for item in document["files"]},
+            "inputs": manifest_inputs(document),
             "consumer": consumer_identity(document, consumer),
             "baseCommit": snapshot_data["head"],
             "snapshot": {"path": str(snapshot_path.resolve()), "sha256": digest(snapshot_path)},
@@ -315,7 +322,11 @@ def anchor_matches(anchor: dict[str, Any], receipt: dict[str, Any], receipt_path
     )
 
 
-def verify(manifest_path: Path, consumer: Path, workspace_root: Path, receipt_path: Path, anchor_path: Path, evidence: Path) -> tuple[WorkflowResult, Path | None]:
+def frontend_scope_guard(consumer: Path, manifest_path: Path, snapshot_path: Path, snapshot_sha256: str, _document: dict[str, Any]) -> Any:
+    return guard.verify(consumer, manifest_path, snapshot_path, snapshot_sha256)
+
+
+def verify(manifest_path: Path, consumer: Path, workspace_root: Path, receipt_path: Path, anchor_path: Path, evidence: Path, validator=validate_input, scope_guard=frontend_scope_guard) -> tuple[WorkflowResult, Path | None]:
     phases: list[Phase] = []
     if not external_to_consumer(receipt_path, consumer) or not external_to_consumer(evidence, consumer):
         return blocked("WF-EVIDENCE-001", "receipt and evidence must be outside the consumer repository", phases), None
@@ -337,7 +348,7 @@ def verify(manifest_path: Path, consumer: Path, workspace_root: Path, receipt_pa
         return blocked("WF-ANCHOR-003", "external anchor values do not correspond to this receipt", phases), None
     phases.append(Phase("custody", "PASS", "WF-ANCHOR-000", "external anchor values correspond to the receipt; custodian authority is not verified"))
 
-    document_or_result = validate_input(manifest_path, workspace_root, phases)
+    document_or_result = validator(manifest_path, workspace_root, phases)
     if isinstance(document_or_result, WorkflowResult):
         return document_or_result, None
     document = document_or_result
@@ -348,7 +359,7 @@ def verify(manifest_path: Path, consumer: Path, workspace_root: Path, receipt_pa
     receipt_manifest = receipt.get("manifest")
     if not isinstance(receipt_manifest, dict) or receipt_manifest.get("path") != str(manifest_path.resolve()) or receipt_manifest.get("sha256") != digest(manifest_path):
         return blocked("WF-IDENTITY-001", "manifest changed or differs from PREPARE", phases), None
-    if receipt.get("inputs") != {item["path"]: item["sha256"] for item in document["files"]}:
+    if receipt.get("inputs") != manifest_inputs(document):
         return blocked("WF-IDENTITY-002", "referenced inputs differ from PREPARE", phases), None
     if receipt.get("consumer") != consumer_identity(document, consumer):
         return blocked("WF-IDENTITY-003", "consumer identity or scope differs from PREPARE", phases), None
@@ -363,7 +374,7 @@ def verify(manifest_path: Path, consumer: Path, workspace_root: Path, receipt_pa
         return blocked("WF-SNAPSHOT-002", "initial snapshot digest does not match receipt and anchor", phases), None
     if receipt["baseCommit"] != anchor["baseCommit"]:
         return blocked("WF-IDENTITY-004", "base commit differs from anchored identity", phases), None
-    guard_result = guard.verify(consumer, manifest_path, snapshot_path, snapshot["sha256"])
+    guard_result = scope_guard(consumer, manifest_path, snapshot_path, snapshot["sha256"], document)
     phases.append(Phase("git-scope", guard_result.status, guard_result.code, guard_result.message))
     status = guard_result.status
     result = failed("WF-VERIFY-FAIL", "Git scope guard reported FAIL", phases) if status == "FAIL" else blocked("WF-VERIFY-BLOCKED", "Git scope guard reported BLOCKED", phases) if status != "PASS" else WorkflowResult("PASS", "WF-VERIFY-000", "observable scope conforms; no attribution or frontend execution is certified", tuple(phases), "BLOCKED")

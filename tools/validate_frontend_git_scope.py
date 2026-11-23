@@ -199,6 +199,10 @@ def verify(repo: Path, manifest_path: Path, snapshot_path: Path, expected_snapsh
     manifest, problem = load_manifest(manifest_path)
     if problem:
         return problem
+    return verify_scope(repo, manifest["scope"], snapshot_path, expected_snapshot_sha256)
+
+
+def verify_scope(repo: Path, scope: dict[str, Any], snapshot_path: Path, expected_snapshot_sha256: str | None = None) -> GuardResult:
     if expected_snapshot_sha256 is None:
         return GuardResult("BLOCKED", "SNAPSHOT-006", "an external expected snapshot SHA-256 is required")
     if not expected_snapshot_sha256.startswith("sha256:") or len(expected_snapshot_sha256) != 71:
@@ -222,7 +226,6 @@ def verify(repo: Path, manifest_path: Path, snapshot_path: Path, expected_snapsh
         return GuardResult("BLOCKED", "GIT-004", "index changed since snapshot")
     if current["ignored"] != snapshot_data["ignored"]:
         return GuardResult("BLOCKED", "GIT-005", "ignored path inventory changed since snapshot; ignored content is not monitored")
-    scope = manifest["scope"]
     before = snapshot_data["tracked"]
     after = current["tracked"]
     changes: list[tuple[str, str]] = []
@@ -244,7 +247,7 @@ def verify(repo: Path, manifest_path: Path, snapshot_path: Path, expected_snapsh
     if not changes:
         return GuardResult("PASS", "SCOPE-000", "no changes detected")
     for kind, path in changes:
-        if kind == "deleted" and not scope["deletionPolicy"]["allowed"]:
+        if kind == "deleted" and not scope.get("deletionPolicy", {}).get("allowed", False):
             return GuardResult("FAIL", "SCOPE-012", f"deletion is not allowed: {path}")
         if not allowed(path, scope):
             protected = any(scope_match(path, rule) for rule in scope["protectedPaths"])

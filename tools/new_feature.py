@@ -27,6 +27,17 @@ def main() -> int:
             shutil.copy2(template / name, output / name)
         for path in (output / "backend.input.yaml", output / "test-cases.yaml"):
             path.write_text(path.read_text(encoding="utf-8").replace("FEAT-CUSTOMER-API-001", args.feature_id), encoding="utf-8")
+        manifest_path = output / "backend.input.yaml"
+        manifest_path.write_text(
+            manifest_path.read_text(encoding="utf-8").replace(
+                "../../../../tests/fixtures/fastapi", args.consumer
+            ),
+            encoding="utf-8",
+        )
+        changelog = Path(args.consumer).resolve() / "backend/db/changelog/db.changelog-master.xml"
+        if not changelog.exists():
+            changelog.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(template / "backend/db/changelog/db.changelog-master.xml", changelog)
         print(f"Created illustrative backend templates in {output}")
         return 0
     template = ROOT / "docs" / "m2" / "examples" / "customer-profile"

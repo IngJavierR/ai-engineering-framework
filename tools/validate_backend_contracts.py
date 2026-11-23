@@ -65,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate backend contract-first manifests.")
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--workspace-root", type=Path)
+    parser.add_argument("--phase", choices=("preflight", "verify"), default="verify")
     args = parser.parse_args(argv)
     manifest_path = args.input.resolve()
     errors, blocked = [], []
@@ -78,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
         print(*errors, sep="\n", file=sys.stderr)
         return 1
     base = manifest_path.parent
+    consumer_root = (base / manifest["consumer"]["repositoryRoot"]).resolve()
+    workspace_root = args.workspace_root.resolve() if args.workspace_root else consumer_root
     contract_path = base / manifest["openapi"]["path"]
     cases_path = base / manifest["testCases"]["path"]
     for path, declared in ((contract_path, manifest["openapi"]["sha256"]), (cases_path, manifest["testCases"]["sha256"])):
@@ -121,20 +124,25 @@ def main(argv: list[str] | None = None) -> int:
     if database.get("migrationTool") != "liquibase":
         blocked.append("BE-DB-003: migrationTool must be liquibase")
     if database["required"]:
-        changelog = (args.workspace_root or base) / database.get("changelogRoot", "")
-        try:
-            root = ET.parse(changelog).getroot()
-            if root.tag.rsplit("}", 1)[-1] != "databaseChangeLog":
-                errors.append("BE-DB-001: changelog root must be databaseChangeLog")
-            identities = set()
-            for changeset in root.iter():
-                if changeset.tag.rsplit("}", 1)[-1] == "changeSet":
-                    identity = (changeset.get("id"), changeset.get("author"), str(changelog))
-                    if not identity[0] or not identity[1] or identity in identities:
-                        errors.append("BE-DB-002: changesets require unique id and author")
-                    identities.add(identity)
-        except (OSError, ET.ParseError):
-            errors.append("BE-DB-001: changelogRoot must exist and be valid XML")
+        changelog = workspace_root / database.get("changelogRoot", "")
+        if args.phase == "preflight" and not changelog.exists():
+            changelog = None
+        if changelog is None:
+            pass
+        else:
+            try:
+                root = ET.parse(changelog).getroot()
+                if root.tag.rsplit("}", 1)[-1] != "databaseChangeLog":
+                    errors.append("BE-DB-001: changelog root must be databaseChangeLog")
+                identities = set()
+                for changeset in root.iter():
+                    if changeset.tag.rsplit("}", 1)[-1] == "changeSet":
+                        identity = (changeset.get("id"), changeset.get("author"), str(changelog))
+                        if not identity[0] or not identity[1] or identity in identities:
+                            errors.append("BE-DB-002: changesets require unique id and author")
+                        identities.add(identity)
+            except (OSError, ET.ParseError):
+                errors.append("BE-DB-001: changelogRoot must exist and be valid XML")
     performance = manifest["performance"]
     if not performance["required"] and not performance.get("reason"):
         errors.append("BE-REQ-001: performance.required false requires reason")
@@ -142,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         profiles = set(performance.get("profiles", []))
         if not performance.get("baseUrlEnv") or not profiles <= VALID_PROFILES or any(case.get("operationId") not in operation_map or not set(case.get("profile", [])) <= profiles for case in performance.get("scenarios", [])):
             errors.append("BE-PERF-001: invalid performance scenario or profile")
-        perf_dir = (args.workspace_root or base) / "performance/gatling"
+        perf_dir = workspace_root / "performance/gatling"
         if perf_dir.exists() and any(re.search(r"https?://(?!localhost|127\.0\.0\.1|\[::1\])", path.read_text(encoding="utf-8"), re.I) for path in perf_dir.rglob("*") if path.is_file()):
             errors.append("BE-PERF-002: fixed non-loopback hosts are prohibited")
     print(*(errors + blocked), sep="\n", file=sys.stderr)

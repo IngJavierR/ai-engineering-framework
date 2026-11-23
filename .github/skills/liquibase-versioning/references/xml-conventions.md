@@ -37,6 +37,24 @@ consumer already manages the same schema with Alembic, Flyway, Prisma, EF, or
 another migration tool, do not add Liquibase in parallel: report `BLOCKED`
 until a migration decision or a client-policy exception is approved.
 
+## PostgreSQL with Docker and Liquibase 5.x
+
+For non-JVM stacks, pin the PostgreSQL and Liquibase images in the consumer.
+Liquibase 5.x installs extensions through Liquibase Package Manager (LPM), so
+install the PostgreSQL extension in the same ephemeral container invocation:
+
+```bash
+docker run --rm --network host \
+  -v "$PWD:/workspace" -w /workspace \
+  liquibase/liquibase:5.0 \
+  sh -c 'lpm add postgresql && liquibase --changelog-file=backend/db/changelog/db.changelog-master.xml validate'
+```
+
+Use the consumer-approved network and credentials mechanism instead of putting
+credentials in this command. Record the pinned image tag, installed extension,
+and PostgreSQL version in validation evidence. Run `update` only against an
+authorized disposable or target environment after validation.
+
 ## Naming
 
 Use descriptive file names.

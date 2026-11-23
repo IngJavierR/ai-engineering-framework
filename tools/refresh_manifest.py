@@ -39,7 +39,7 @@ def main() -> int:
         consumer = (manifest_path.parent / document["consumer"]["repositoryRoot"]).resolve()
         document["consumer"]["baseline"]["commit"] = git_clean(consumer)
         manifest_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
-        return subprocess.run([sys.executable, str(ROOT / "tools" / "validate_backend_contracts.py"), "--input", str(manifest_path), "--workspace-root", str(manifest_path.parent)], check=False).returncode
+        return subprocess.run([sys.executable, str(ROOT / "tools" / "validate_backend_contracts.py"), "--input", str(manifest_path), "--phase", "verify"], check=False).returncode
     consumer = (manifest_path.parent / document["consumer"]["repositoryRoot"]).resolve()
     package = json.loads((consumer / document["consumer"]["detection"]["manifestPath"]).read_text(encoding="utf-8"))
     lock = json.loads((consumer / document["consumer"]["detection"]["lockfilePath"]).read_text(encoding="utf-8"))

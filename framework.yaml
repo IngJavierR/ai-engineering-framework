@@ -1,7 +1,7 @@
 
 framework:
   name: ai-engineering-framework
-  version: 0.7.0-rc.1
+  version: 0.7.0-rc.2
   status: release-candidate
 
   description: >
