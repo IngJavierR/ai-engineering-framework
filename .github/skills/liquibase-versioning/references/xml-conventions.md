@@ -55,6 +55,23 @@ credentials in this command. Record the pinned image tag, installed extension,
 and PostgreSQL version in validation evidence. Run `update` only against an
 authorized disposable or target environment after validation.
 
+On Docker Desktop for macOS, use a Compose network instead of `--network host`:
+
+```yaml
+services:
+  postgres:
+    image: postgres:16
+  liquibase:
+    image: liquibase/liquibase:5.0
+    depends_on: [postgres]
+    working_dir: /workspace
+    volumes: [".:/workspace"]
+    command: sh -c 'lpm add postgresql --global && liquibase --changelog-file=backend/db/changelog/db.changelog-master.xml validate'
+```
+
+Configure the approved PostgreSQL credentials through the consumer environment;
+do not commit them to the Compose file.
+
 ## Naming
 
 Use descriptive file names.

@@ -4,10 +4,24 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def is_git_repository(path: Path) -> bool:
+    return path.is_dir() and subprocess.run(["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True).returncode == 0
+
+
+def replace_feature_ids(path: Path, feature_id: str) -> None:
+    suffix = feature_id.removeprefix("FEAT-")
+    content = path.read_text(encoding="utf-8").replace("FEAT-CUSTOMER-API-001", feature_id)
+    content = content.replace("TC-CUSTOMER-API-001-", f"TC-{suffix}-")
+    path.write_text(content, encoding="utf-8")
 
 
 def main() -> int:
@@ -16,8 +30,14 @@ def main() -> int:
     parser.add_argument("--stack", choices=("angular", "react", "java-spring", "python-fastapi", "generic"), required=True)
     parser.add_argument("--consumer", required=True)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--contract-dir")
+    parser.add_argument("--frontend-root", default=".")
     args = parser.parse_args()
-    output = args.out
+    consumer = Path(args.consumer).resolve()
+    output = args.out.resolve()
+    if not is_git_repository(consumer):
+        print(f"NF-CONSUMER-001: consumer is not a Git repository: {consumer}", file=sys.stderr)
+        return 1
     if output.exists() and any(output.iterdir()):
         raise SystemExit("ERROR: output directory must be absent or empty")
     output.mkdir(parents=True, exist_ok=True)
@@ -26,18 +46,35 @@ def main() -> int:
         for name in ("backend.input.yaml", "openapi.yaml", "test-cases.yaml"):
             shutil.copy2(template / name, output / name)
         for path in (output / "backend.input.yaml", output / "test-cases.yaml"):
-            path.write_text(path.read_text(encoding="utf-8").replace("FEAT-CUSTOMER-API-001", args.feature_id), encoding="utf-8")
+            replace_feature_ids(path, args.feature_id)
         manifest_path = output / "backend.input.yaml"
+        repository_root = os.path.relpath(consumer, output)
         manifest_path.write_text(
             manifest_path.read_text(encoding="utf-8").replace(
-                "../../../../tests/fixtures/fastapi", args.consumer
+                "../../../../tests/fixtures/fastapi", repository_root
             ),
             encoding="utf-8",
         )
-        changelog = Path(args.consumer).resolve() / "backend/db/changelog/db.changelog-master.xml"
-        if not changelog.exists():
-            changelog.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(template / "backend/db/changelog/db.changelog-master.xml", changelog)
+        manifest_path.write_text(
+            manifest_path.read_text(encoding="utf-8").replace(
+                "scope:\n", "scope:\n  ignoredWorkPaths: [\"**/.venv/**\", \"**/__pycache__/**\", \"**/.pytest_cache/**\", \"**/*.egg-info/**\", \"performance/gatling/target/**\"]\n"
+            ),
+            encoding="utf-8",
+        )
+        if args.contract_dir:
+            contract_dir = Path(args.contract_dir)
+            if contract_dir.is_absolute() or ".." in contract_dir.parts:
+                print("NF-CONTRACT-001: contract-dir must be a relative path inside the consumer", file=sys.stderr)
+                return 1
+            destination = consumer / contract_dir
+            destination.mkdir(parents=True, exist_ok=True)
+            for name in ("openapi.yaml", "test-cases.yaml"):
+                shutil.copy2(output / name, destination / name)
+            document = manifest_path.read_text(encoding="utf-8")
+            document = document.replace("path: openapi.yaml", f"path: {contract_dir.as_posix()}/openapi.yaml\n  pathBase: consumer")
+            document = document.replace("path: test-cases.yaml", f"path: {contract_dir.as_posix()}/test-cases.yaml\n  pathBase: consumer")
+            document = document.replace("protectedPaths: [{path: frontend, kind: directory}", f"protectedPaths: [{{path: {contract_dir.as_posix()}, kind: directory}}, {{path: frontend, kind: directory}}")
+            manifest_path.write_text(document, encoding="utf-8")
         print(f"Created illustrative backend templates in {output}")
         return 0
     template = ROOT / "docs" / "m2" / "examples" / "customer-profile"
@@ -45,7 +82,24 @@ def main() -> int:
         shutil.copy2(template / name, output / name)
     manifest = (output / f"{args.stack}.input.yaml").read_text(encoding="utf-8")
     manifest = manifest.replace("FEAT-CUSTOMER-PROFILE-001", args.feature_id)
-    manifest = manifest.replace("../../../../labs/angular-customer-profile-consumer", args.consumer)
+    repository_root = os.path.relpath(consumer, output)
+    manifest = manifest.replace("../../../../labs/angular-customer-profile-consumer", repository_root)
+    ignored = "[\"**/node_modules/**\", \"**/.angular/**\", \"**/dist/**\", \"**/coverage/**\"]"
+    manifest = manifest.replace("scope:\n", f"scope:\n  ignoredWorkPaths: {ignored}\n", 1)
+    frontend_root = Path(args.frontend_root)
+    if frontend_root != Path("."):
+        if frontend_root.is_absolute() or ".." in frontend_root.parts:
+            print("NF-FRONTEND-001: frontend-root must be a relative path inside the consumer", file=sys.stderr)
+            return 1
+        prefix = frontend_root.as_posix()
+        manifest = manifest.replace("manifestPath: package.json", f"manifestPath: {prefix}/package.json")
+        manifest = manifest.replace("lockfilePath: package-lock.json", f"lockfilePath: {prefix}/package-lock.json")
+        for path in ("src/app/features/customer-profile", "src/app/core", "src/app", "README.md"):
+            manifest = manifest.replace(f"path: {path}", f"path: {prefix}/{path}")
+        siblings = [item.name for item in consumer.iterdir() if item.is_dir() and item.name != frontend_root.parts[0] and item.name != ".git"]
+        if siblings:
+            marker = "protectedPaths:"
+            manifest = manifest.replace(marker, marker + "\n" + "\n".join(f"    - {{path: {name}, kind: directory}}" for name in siblings), 1)
     (output / f"{args.stack}.input.yaml").write_text(manifest, encoding="utf-8")
     unit = (output / "unit-tests.yaml").read_text(encoding="utf-8").replace("FEAT-CUSTOMER-PROFILE-001", args.feature_id)
     (output / "unit-tests.yaml").write_text(unit, encoding="utf-8")

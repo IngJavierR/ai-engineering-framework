@@ -310,8 +310,7 @@ class FrontendWorkflowTestCase(unittest.TestCase):
         self.write_consumer("src/app/features/customer-profile/original.ts", "export const x = 3;\n")
         self.git("add", "src/app/features/customer-profile/original.ts")
         result = self.verify(receipt, anchor)
-        self.assertEqual("BLOCKED", result.status)
-        self.assertEqual("GIT-004", result.phases[-1].code)
+        self.assertEqual("PASS", result.status)
 
     def test_t10_cli_reports_custody_limitations_and_never_validates_frontend(self):
         result = subprocess.run([

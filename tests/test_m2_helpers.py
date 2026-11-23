@@ -46,21 +46,43 @@ class M2HelperTest(unittest.TestCase):
 
     def test_new_feature_creates_illustrative_structural_templates(self):
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "feature"
-            result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "angular", "--consumer", "../consumer", "--out", str(output)], capture_output=True, text=True)
+            root = Path(directory); consumer = root / "consumer"; consumer.mkdir(); subprocess.run(["git", "-C", str(consumer), "init", "-q"], check=True)
+            output = root / "feature"
+            result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "angular", "--consumer", str(consumer), "--out", str(output)], capture_output=True, text=True)
             self.assertEqual(0, result.returncode, result.stderr)
             manifest = (output / "angular.input.yaml").read_text(encoding="utf-8")
             self.assertIn("illustrative-not-ready-for-execution", manifest)
             self.assertIn("FEAT-SAMPLE-001", manifest)
 
-    def test_new_backend_feature_replaces_consumer_and_creates_missing_changelog(self):
+    def test_new_backend_feature_records_relative_consumer_without_mutating_it(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             consumer = root / "consumer"
-            consumer.mkdir()
+            consumer.mkdir(); subprocess.run(["git", "-C", str(consumer), "init", "-q"], check=True)
             output = root / "feature"
             result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "python-fastapi", "--consumer", str(consumer), "--out", str(output)], capture_output=True, text=True)
             self.assertEqual(0, result.returncode, result.stderr)
             manifest = (output / "backend.input.yaml").read_text(encoding="utf-8")
-            self.assertIn(f"repositoryRoot: {consumer}", manifest)
-            self.assertTrue((consumer / "backend/db/changelog/db.changelog-master.xml").is_file())
+            self.assertIn("repositoryRoot: ../consumer", manifest)
+            self.assertFalse((consumer / "backend/db/changelog/db.changelog-master.xml").exists())
+            self.assertIn("TC-SAMPLE-001-01", (output / "test-cases.yaml").read_text())
+
+    def test_new_feature_reports_missing_consumer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "angular", "--consumer", str(Path(directory) / "missing"), "--out", str(Path(directory) / "out")], capture_output=True, text=True)
+            self.assertEqual(1, result.returncode)
+            self.assertIn("NF-CONSUMER-001", result.stderr)
+
+    def test_new_feature_prefixes_monorepo_frontend_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); consumer = root / "consumer"; consumer.mkdir()
+            subprocess.run(["git", "-C", str(consumer), "init", "-q"], check=True)
+            (consumer / "frontend").mkdir(); (consumer / "backend").mkdir()
+            output = root / "feature"
+            result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "angular", "--consumer", str(consumer), "--frontend-root", "frontend", "--out", str(output)], capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            manifest = (output / "angular.input.yaml").read_text()
+            self.assertIn("manifestPath: frontend/package.json", manifest)
+            self.assertIn("lockfilePath: frontend/package-lock.json", manifest)
+            self.assertIn("path: frontend/src/app/features/customer-profile", manifest)
+            self.assertIn("path: backend, kind: directory", manifest)

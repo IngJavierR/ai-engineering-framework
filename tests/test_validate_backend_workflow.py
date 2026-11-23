@@ -73,6 +73,10 @@ class BackendWorkflowTest(unittest.TestCase):
         }
         anchor_path = self.custody / "anchor.json"
         workflow.workflow.atomic_json(anchor_path, anchor)
+        changes = self.consumer / "backend/db/changelog/changes"; changes.mkdir(parents=True)
+        (changes / "001.xml").write_text('<databaseChangeLog><changeSet id="1" author="test"/></databaseChangeLog>')
+        (self.consumer / "backend/db/changelog/db.changelog-master.xml").write_text('<databaseChangeLog><include file="changes/001.xml" relativeToChangelogFile="true"/></databaseChangeLog>')
+        simulation = self.consumer / "performance/gatling/src/Simulation.scala"; simulation.parent.mkdir(parents=True); simulation.write_text("// getCustomer")
         self.write("backend/app/main.py", "value = 2\n")
         verified, _ = workflow.workflow.verify(self.package / "backend.input.yaml", self.consumer, self.root, receipt, anchor_path, self.evidence, workflow.verify_input, workflow.scope_guard)
         self.assertEqual("PASS", verified.status, verified.payload())

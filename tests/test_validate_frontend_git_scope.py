@@ -66,7 +66,9 @@ class GitScopeTestCase(unittest.TestCase):
 
     def test_t01_captures_clean_snapshot_without_modifying_repository(self):
         before = {path: path.read_bytes() for path in self.repo.rglob("*") if path.is_file() and ".git" not in path.parts}
-        self.capture()
+        result = guard.write_snapshot(self.repo, self.snapshot_path, ["**/node_modules/**"])
+        self.assertEqual("PASS", result.status, result)
+        self.snapshot_digest = "sha256:" + guard.snapshot_digest(self.snapshot_path)
         self.assertTrue(self.snapshot_path.is_file())
         self.assertEqual(before, {path: path.read_bytes() for path in self.repo.rglob("*") if path.is_file() and ".git" not in path.parts})
 
@@ -98,7 +100,7 @@ class GitScopeTestCase(unittest.TestCase):
         self.capture()
         self.write("src/app/features/customer-profile/original.ts", "export const x = 2;\n")
         self.git("add", "src/app/features/customer-profile/original.ts")
-        self.assertEqual("GIT-004", self.verify().code)
+        self.assertEqual("PASS", self.verify().status)
 
     def test_t07_blocks_prohibited_deletion(self):
         self.capture()
@@ -108,7 +110,7 @@ class GitScopeTestCase(unittest.TestCase):
     def test_t08_blocks_rename_to_protected_path(self):
         self.capture()
         self.git("mv", "src/app/features/customer-profile/original.ts", "src/app/features/customer-profile/protected.ts")
-        self.assertEqual("GIT-004", self.verify().code)
+        self.assertEqual("SCOPE-009", self.verify().code)
 
     def test_t09_blocks_symlink_type_change(self):
         self.capture()
@@ -132,7 +134,7 @@ class GitScopeTestCase(unittest.TestCase):
         self.write("src/app/features/customer-profile/new.ts", "export const n = 1;\n")
         self.git("add", ".")
         self.git("commit", "-m", "concurrent")
-        self.assertEqual("GIT-003", self.verify().code)
+        self.assertEqual("PASS", self.verify().status)
 
     def test_t12_blocks_non_git_and_missing_or_corrupt_snapshot(self):
         non_git = self.root / "non-git"
@@ -198,6 +200,32 @@ class GitScopeTestCase(unittest.TestCase):
         self.snapshot_path.write_text(json.dumps(data), encoding="utf-8")
         digest = "sha256:" + guard.snapshot_digest(self.snapshot_path)
         self.assertEqual("SNAPSHOT-002", guard.verify(self.repo, self.manifest, self.snapshot_path, digest).code)
+
+    def test_t18_ignores_declared_work_paths_only(self):
+        self.write(".gitignore", "node_modules/\n.env\n")
+        self.git("add", ".gitignore")
+        self.git("commit", "-m", "ignore work")
+        document = yaml.safe_load(self.manifest.read_text())
+        document["scope"]["ignoredWorkPaths"] = ["**/node_modules/**"]
+        self.manifest.write_text(yaml.safe_dump(document, sort_keys=False))
+        self.write("frontend/node_modules/x", "generated")
+        result = guard.write_snapshot(self.repo, self.snapshot_path, document["scope"]["ignoredWorkPaths"])
+        self.assertEqual("PASS", result.status, result)
+        self.snapshot_digest = "sha256:" + guard.snapshot_digest(self.snapshot_path)
+        self.write("frontend/node_modules/new", "generated")
+        self.assertEqual("PASS", self.verify().status)
+        self.write(".env", "secret")
+        self.assertEqual("GIT-005", self.verify().code)
+
+    def test_t19_rejects_invalid_ignored_pattern_and_detached_head(self):
+        self.write(".gitignore", "node_modules/\n")
+        self.git("add", ".gitignore")
+        self.git("commit", "-m", "ignore")
+        self.assertEqual("SCOPE-IGN-001", guard.write_snapshot(self.repo, self.snapshot_path, ["**"]).code)
+        self.git("checkout", "--detach")
+        result = guard.write_snapshot(self.repo, self.snapshot_path)
+        self.assertEqual("GIT-002", result.code)
+        self.assertIn("detached HEAD", result.message)
 
 
 if __name__ == "__main__":

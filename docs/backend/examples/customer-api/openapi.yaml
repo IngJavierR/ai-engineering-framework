@@ -13,6 +13,7 @@ paths:
           schema: {type: string}
       responses:
         '200': {description: Customer, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '404': {description: Missing, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
   /customers:
     post:
       operationId: createCustomer
@@ -27,3 +28,4 @@ components:
     Customer: {type: object, required: [id, displayName], properties: {id: {type: string}, displayName: {type: string}}}
     CreateCustomer: {type: object, required: [displayName], properties: {displayName: {type: string, minLength: 2}}}
     ValidationError: {type: object, properties: {detail: {type: string}}}
+    Error: {type: object, properties: {detail: {type: string}}}

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import importlib.util
 import sys
 from pathlib import Path
@@ -37,7 +39,8 @@ def validate_input(manifest_path: Path, _workspace_root: Path, phases: list[Any]
     if errors:
         phases.append(workflow.Phase("structural", "BLOCKED", "BE-WF-STRUCTURAL-001", errors[0]))
         return workflow.blocked("BE-WF-STRUCTURAL-001", "structural validation failed", phases)
-    result = backend.main(["--input", str(manifest_path), "--phase", phase])
+    with contextlib.redirect_stdout(io.StringIO()):
+        result = backend.main(["--input", str(manifest_path), "--phase", phase])
     if result:
         phases.append(workflow.Phase(phase, "BLOCKED", "BE-WF-VALIDATION-001", f"backend {phase} validation failed"))
         return workflow.blocked("BE-WF-VALIDATION-001", f"backend {phase} validation failed", phases)
@@ -75,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         result, artifact = workflow.verify(arguments.manifest, arguments.consumer_repository, arguments.workspace_root, arguments.receipt, arguments.external_anchor, arguments.evidence_directory, verify_input, scope_guard)
     payload = result.payload()
+    payload["backendEvidence"] = payload.pop("frontendEvidence")
+    payload["limitations"] = [
+        item.replace("frontend tests, builds, or type checks", "backend tests, builds, Liquibase, or Gatling")
+        for item in payload["limitations"]
+    ]
     if artifact is not None:
         payload["artifact"] = str(artifact)
     print(workflow.json.dumps(payload, sort_keys=True))

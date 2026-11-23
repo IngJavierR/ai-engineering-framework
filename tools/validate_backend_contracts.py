@@ -61,6 +61,65 @@ def component_exists(openapi: dict[str, Any], reference: Any) -> bool:
     return reference.rsplit("/", 1)[-1] in openapi.get("components", {}).get("schemas", {})
 
 
+def manifest_resource(base: Path, consumer: Path, value: dict[str, Any]) -> Path:
+    return (consumer if value.get("pathBase") == "consumer" else base) / value["path"]
+
+
+def performance_sources(performance_root: Path) -> list[Path]:
+    source_root = performance_root / "src"
+    extensions = {".java", ".kt", ".scala", ".conf", ".properties", ".json", ".yaml", ".yml", ".csv"}
+    files = [path for path in source_root.rglob("*") if path.is_file() and path.suffix in extensions] if source_root.exists() else []
+    files.extend(path for path in performance_root.glob("*.properties") if path.is_file())
+    return files
+
+
+def fixed_hosts(path: Path) -> list[tuple[int, str]]:
+    found = []
+    for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        for host in re.findall(r"https?://([^/\s:'\"]+)", line, re.I):
+            if host.lower() not in {"localhost", "127.0.0.1", "[::1]"}:
+                found.append((number, host))
+    return found
+
+
+def changelog_changesets(path: Path, errors: list[str], visited: set[Path] | None = None) -> list[ET.Element]:
+    visited = visited or set()
+    path = path.resolve()
+    if path in visited:
+        return []
+    visited.add(path)
+    try:
+        root = ET.parse(path).getroot()
+    except (OSError, ET.ParseError):
+        errors.append(f"BE-DB-004: cannot read included changelog {path}")
+        return []
+    if root.tag.rsplit("}", 1)[-1] != "databaseChangeLog":
+        errors.append("BE-DB-001: changelog root must be databaseChangeLog")
+        return []
+    changesets = []
+    for element in root:
+        name = element.tag.rsplit("}", 1)[-1]
+        if name == "changeSet":
+            changesets.append(element)
+        elif name == "include":
+            include = element.get("file")
+            include_root = path.parent if element.get("relativeToChangelogFile", "false").lower() == "true" else path.parent
+            if not include or not (include_root / include).is_file():
+                errors.append(f"BE-DB-004: included changelog does not exist: {include}")
+            else:
+                changesets.extend(changelog_changesets(include_root / include, errors, visited))
+        elif name == "includeAll":
+            directory = element.get("path")
+            include_root = path.parent if element.get("relativeToChangelogFile", "false").lower() == "true" else path.parent
+            target = include_root / (directory or "")
+            if not directory or not target.is_dir():
+                errors.append(f"BE-DB-004: included changelog directory does not exist: {directory}")
+            else:
+                for included in sorted(target.rglob("*.xml")):
+                    changesets.extend(changelog_changesets(included, errors, visited))
+    return changesets
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate backend contract-first manifests.")
     parser.add_argument("--input", required=True, type=Path)
@@ -81,8 +140,8 @@ def main(argv: list[str] | None = None) -> int:
     base = manifest_path.parent
     consumer_root = (base / manifest["consumer"]["repositoryRoot"]).resolve()
     workspace_root = args.workspace_root.resolve() if args.workspace_root else consumer_root
-    contract_path = base / manifest["openapi"]["path"]
-    cases_path = base / manifest["testCases"]["path"]
+    contract_path = manifest_resource(base, consumer_root, manifest["openapi"])
+    cases_path = manifest_resource(base, consumer_root, manifest["testCases"])
     for path, declared in ((contract_path, manifest["openapi"]["sha256"]), (cases_path, manifest["testCases"]["sha256"])):
         if not path.is_file() or digest(path) != declared:
             errors.append(f"BE-HASH-001: digest mismatch for {path}")
@@ -110,6 +169,8 @@ def main(argv: list[str] | None = None) -> int:
         if not component_exists(openapi, case.get("expected", {}).get("responseSchema")):
             errors.append(f"BE-TEST-005: case {case.get('id')} has an unknown response schema")
         cases_by_operation.setdefault(case["operationId"], []).append(case)
+        if "negative" in case.get("classification", []) and not 400 <= case.get("expected", {}).get("status", 0) < 500:
+            errors.append(f"BE-TEST-006: negative case {case.get('id')} must expect a 4xx status")
     for operation_id, operation in operation_map.items():
         operation_cases = cases_by_operation.get(operation_id, [])
         if not any(200 <= case.get("expected", {}).get("status", 0) < 400 for case in operation_cases):
@@ -130,19 +191,19 @@ def main(argv: list[str] | None = None) -> int:
         if changelog is None:
             pass
         else:
-            try:
-                root = ET.parse(changelog).getroot()
-                if root.tag.rsplit("}", 1)[-1] != "databaseChangeLog":
-                    errors.append("BE-DB-001: changelog root must be databaseChangeLog")
-                identities = set()
-                for changeset in root.iter():
-                    if changeset.tag.rsplit("}", 1)[-1] == "changeSet":
-                        identity = (changeset.get("id"), changeset.get("author"), str(changelog))
-                        if not identity[0] or not identity[1] or identity in identities:
-                            errors.append("BE-DB-002: changesets require unique id and author")
-                        identities.add(identity)
-            except (OSError, ET.ParseError):
+            if not changelog.is_file():
                 errors.append("BE-DB-001: changelogRoot must exist and be valid XML")
+                changesets = []
+            else:
+                changesets = changelog_changesets(changelog, errors)
+            identities = set()
+            for changeset in changesets:
+                identity = (changeset.get("id"), changeset.get("author"))
+                if not identity[0] or not identity[1] or identity in identities:
+                    errors.append("BE-DB-002: changesets require unique id and author")
+                identities.add(identity)
+            if args.phase == "verify" and not changesets:
+                errors.append("BE-DB-005: changelog must contain at least one reachable changeSet")
     performance = manifest["performance"]
     if not performance["required"] and not performance.get("reason"):
         errors.append("BE-REQ-001: performance.required false requires reason")
@@ -151,8 +212,17 @@ def main(argv: list[str] | None = None) -> int:
         if not performance.get("baseUrlEnv") or not profiles <= VALID_PROFILES or any(case.get("operationId") not in operation_map or not set(case.get("profile", [])) <= profiles for case in performance.get("scenarios", [])):
             errors.append("BE-PERF-001: invalid performance scenario or profile")
         perf_dir = workspace_root / "performance/gatling"
-        if perf_dir.exists() and any(re.search(r"https?://(?!localhost|127\.0\.0\.1|\[::1\])", path.read_text(encoding="utf-8"), re.I) for path in perf_dir.rglob("*") if path.is_file()):
-            errors.append("BE-PERF-002: fixed non-loopback hosts are prohibited")
+        sources = performance_sources(perf_dir)
+        for source in sources:
+            for line, host in fixed_hosts(source):
+                errors.append(f"BE-PERF-002: {source}:{line} fixed non-loopback host {host}")
+        if args.phase == "verify":
+            if not any(path.suffix in {".java", ".kt", ".scala"} for path in sources):
+                errors.append("BE-PERF-003: performance/gatling/src must contain a simulation source")
+            text = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in sources)
+            for scenario in performance.get("scenarios", []):
+                if scenario.get("operationId") not in text:
+                    errors.append(f"BE-PERF-004: operationId is not referenced by a simulation: {scenario.get('operationId')}")
     print(*(errors + blocked), sep="\n", file=sys.stderr)
     if errors:
         return 1

@@ -12,7 +12,7 @@ cases:
     level: contract
     classification: [negative]
     request: {method: GET, path: "/customers/{customerId}"}
-    expected: {status: 200, responseSchema: "#/components/schemas/Customer"}
+    expected: {status: 404, responseSchema: "#/components/schemas/Error"}
   - id: TC-CUSTOMER-API-001-03
     operationId: createCustomer
     level: contract

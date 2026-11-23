@@ -191,7 +191,8 @@ def prepare(manifest_path: Path, consumer: Path, workspace_root: Path, evidence:
 
     execution_id = str(uuid.uuid4())
     snapshot_path, receipt_path = receipt_paths(evidence, execution_id)
-    snapshot_result = guard.write_snapshot(consumer, snapshot_path)
+    ignored_work_paths = document["scope"].get("ignoredWorkPaths", [])
+    snapshot_result = guard.write_snapshot(consumer, snapshot_path, ignored_work_paths)
     phases.append(Phase("snapshot", snapshot_result.status, snapshot_result.code, snapshot_result.message))
     if snapshot_result.status != "PASS":
         return blocked("WF-SNAPSHOT-001", "initial snapshot capture failed", phases), None
@@ -203,6 +204,7 @@ def prepare(manifest_path: Path, consumer: Path, workspace_root: Path, evidence:
             "manifest": {"path": str(manifest_path.resolve()), "sha256": digest(manifest_path)},
             "inputs": manifest_inputs(document),
             "consumer": consumer_identity(document, consumer),
+            "ignoredWorkPaths": ignored_work_paths,
             "baseCommit": snapshot_data["head"],
             "snapshot": {"path": str(snapshot_path.resolve()), "sha256": digest(snapshot_path)},
         }
@@ -272,7 +274,7 @@ def load_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
 
 def validate_receipt(value: dict[str, Any]) -> str | None:
     required = {"receiptVersion", "executionId", "manifest", "inputs", "consumer", "baseCommit", "snapshot"}
-    if set(value) != required:
+    if set(value) not in (required, required | {"ignoredWorkPaths"}):
         return "receipt fields are missing or unexpected"
     if value.get("receiptVersion") != RECEIPT_VERSION:
         return "receiptVersion is invalid"
@@ -284,6 +286,8 @@ def validate_receipt(value: dict[str, Any]) -> str | None:
         return "inputs are invalid"
     if not valid_consumer(value.get("consumer")):
         return "consumer is invalid"
+    if "ignoredWorkPaths" in value and (not isinstance(value["ignoredWorkPaths"], list) or not all(isinstance(item, str) for item in value["ignoredWorkPaths"])):
+        return "ignoredWorkPaths is invalid"
     if not is_commit(value.get("baseCommit")):
         return "baseCommit is invalid"
     if not valid_file_reference(value.get("snapshot")):

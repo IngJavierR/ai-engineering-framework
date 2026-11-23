@@ -31,7 +31,8 @@ workspace/
    python3 tools/new_feature.py \
      --feature-id FEAT-PROFILE-001 \
      --stack angular \
-     --consumer ../../mi-frontend \
+     --consumer mi-frontend \
+     --frontend-root frontend \
      --out features/profile
    ```
 
@@ -91,6 +92,8 @@ Para React, sustituye `angular` por `react` y usa las skills equivalentes.
 `VERIFY` con `status: PASS` y `workflowStatus: BLOCKED` significa que el alcance
 Git observable es conforme, pero la evidencia de frontend sigue en `NOT_RUN`.
 No certifica autoría, pruebas, build, typecheck ni validación formal completa.
+En un monorepo, `--frontend-root frontend` hace que las rutas del manifiesto se
+resuelvan dentro de ese directorio y protege los directorios hermanos.
 
 ## Decisiones autorizadas
 

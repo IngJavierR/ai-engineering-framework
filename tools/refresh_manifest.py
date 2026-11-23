@@ -20,8 +20,9 @@ def digest(path: Path) -> str:
 
 
 def git_clean(path: Path) -> str:
-    if subprocess.check_output(["git", "-C", str(path), "status", "--porcelain"], text=True):
-        raise ValueError("consumer working tree must be clean")
+    changes = subprocess.check_output(["git", "-C", str(path), "status", "--porcelain"], text=True)
+    if changes:
+        raise ValueError(f"RM-GIT-001: consumer working tree is not clean: {', '.join(line[3:] for line in changes.splitlines())}")
     return subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
 
 
@@ -30,33 +31,51 @@ def main() -> int:
     parser.add_argument("--manifest", required=True, type=Path)
     args = parser.parse_args()
     manifest_path = args.manifest.resolve()
-    document = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    try:
+        document = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        print(f"RM-MANIFEST-001: cannot read manifest: {error}", file=sys.stderr)
+        return 1
     if not isinstance(document, dict):
         raise SystemExit("ERROR: manifest root must be a mapping")
     if document.get("schemaVersion") == "backend-service-input/v1":
-        for key in ("openapi", "testCases"):
-            document[key]["sha256"] = digest(manifest_path.parent / document[key]["path"])
         consumer = (manifest_path.parent / document["consumer"]["repositoryRoot"]).resolve()
-        document["consumer"]["baseline"]["commit"] = git_clean(consumer)
+        for key in ("openapi", "testCases"):
+            root = consumer if document[key].get("pathBase") == "consumer" else manifest_path.parent
+            document[key]["sha256"] = digest(root / document[key]["path"])
+        try:
+            document["consumer"]["baseline"]["commit"] = git_clean(consumer)
+        except (OSError, subprocess.CalledProcessError, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 1
         manifest_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
-        return subprocess.run([sys.executable, str(ROOT / "tools" / "validate_backend_contracts.py"), "--input", str(manifest_path), "--phase", "verify"], check=False).returncode
+        return subprocess.run([sys.executable, str(ROOT / "tools" / "validate_backend_contracts.py"), "--input", str(manifest_path), "--phase", "preflight"], check=False).returncode
     consumer = (manifest_path.parent / document["consumer"]["repositoryRoot"]).resolve()
-    package = json.loads((consumer / document["consumer"]["detection"]["manifestPath"]).read_text(encoding="utf-8"))
-    lock = json.loads((consumer / document["consumer"]["detection"]["lockfilePath"]).read_text(encoding="utf-8"))
+    try:
+        package = json.loads((consumer / document["consumer"]["detection"]["manifestPath"]).read_text(encoding="utf-8"))
+        lock = json.loads((consumer / document["consumer"]["detection"]["lockfilePath"]).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"RM-CONSUMER-001: consumer manifest or lockfile is unavailable; use --frontend-root when needed: {error}", file=sys.stderr)
+        return 1
     dependency = "@angular/core" if document["consumer"]["stack"] == "angular" else "react"
     version_key = "angularCore" if document["consumer"]["stack"] == "angular" else "react"
     dependencies = {**package.get("dependencies", {}), **package.get("devDependencies", {})}
     resolved = lock.get("packages", {}).get(f"node_modules/{dependency}", {}).get("version")
     typescript_resolved = lock.get("packages", {}).get("node_modules/typescript", {}).get("version")
     if dependency not in dependencies or not resolved or "typescript" not in dependencies or not typescript_resolved:
-        raise SystemExit("ERROR: consumer dependency or lock version is unavailable")
+        print("RM-CONSUMER-001: consumer dependency or lock version is unavailable", file=sys.stderr)
+        return 1
     detection = document["consumer"]["detection"]
     detection["declaredVersions"] = {version_key: dependencies[dependency], "typescript": dependencies["typescript"]}
     detection["resolvedVersions"] = {version_key: resolved, "typescript": typescript_resolved}
     detection["detectionMethod"] = "package.json and package-lock.json refreshed by tools/refresh_manifest.py"
     detection["reason"] = "Consumer metadata and lockfile were read from the clean consumer repository."
     document["consumer"]["verificationStatus"] = "verified"
-    document["baseline"]["commit"] = git_clean(consumer)
+    try:
+        document["baseline"]["commit"] = git_clean(consumer)
+    except (OSError, subprocess.CalledProcessError, ValueError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
     document["baseline"]["verificationStatus"] = "verified"
     document["baseline"]["reason"] = "Baseline commit was captured from the clean consumer repository."
     references = [document["functionalSpecification"], *document["mockups"], document["unitTests"]]

@@ -10,6 +10,7 @@ import json
 import os
 import subprocess
 import sys
+from fnmatch import fnmatch
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,11 @@ def run_git(repo: Path, *args: str) -> str:
     return subprocess.check_output(
         ["git", "-C", str(repo), *args], text=True, stderr=subprocess.STDOUT
     )
+
+
+def git_error(error: subprocess.CalledProcessError) -> str:
+    command = " ".join(str(item) for item in error.cmd)
+    return f"{command}: {(error.output or '').strip() or 'command failed'}"
 
 
 def is_git_repo(repo: Path) -> bool:
@@ -92,7 +98,45 @@ def porcelain(repo: Path) -> list[dict[str, str]]:
     return changes
 
 
-def snapshot(repo: Path) -> tuple[dict[str, Any] | None, GuardResult | None]:
+def matches_ignored_path(path: str, patterns: list[str]) -> bool:
+    normalized = path.rstrip("/")
+    for pattern in patterns:
+        stripped = pattern.strip("/")
+        if stripped.startswith("**/") and stripped.endswith("/**"):
+            directory = stripped[3:-3]
+            if normalized == directory or normalized.endswith(f"/{directory}") or f"/{directory}/" in f"/{normalized}/":
+                return True
+        if fnmatch(normalized, stripped) or fnmatch(f"{normalized}/", pattern):
+            return True
+    return False
+
+
+def validate_ignored_work_paths(repo: Path, patterns: Any) -> GuardResult | None:
+    if patterns is None:
+        return None
+    if not isinstance(patterns, list):
+        return GuardResult("BLOCKED", "SCOPE-IGN-001", "ignoredWorkPaths must be a list")
+    tracked = set(filter(None, run_git(repo, "ls-files", "-z").split("\0")))
+    for pattern in patterns:
+        if not isinstance(pattern, str) or not pattern or pattern in {"**", "*", "/"} or pattern.startswith("/") or ".." in pattern.split("/") or "\\" in pattern:
+            return GuardResult("BLOCKED", "SCOPE-IGN-001", f"invalid ignoredWorkPaths pattern: {pattern!r}")
+        if any(fnmatch(path, pattern) for path in tracked):
+            return GuardResult("BLOCKED", "SCOPE-IGN-001", f"ignoredWorkPaths matches tracked file: {pattern}")
+    return None
+
+
+def filtered_ignored(repo: Path, patterns: list[str]) -> tuple[list[str], GuardResult | None]:
+    ignored = sorted(item for item in run_git(repo, "ls-files", "--others", "--ignored", "--exclude-standard", "-z").split("\0") if item)
+    for path in ignored:
+        if matches_ignored_path(path, patterns):
+            try:
+                subprocess.check_output(["git", "-C", str(repo), "check-ignore", "-q", "--", path], stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError:
+                return [], GuardResult("BLOCKED", "SCOPE-IGN-001", f"ignoredWorkPaths match is not Git-ignored: {path}")
+    return [path for path in ignored if not matches_ignored_path(path, patterns)], None
+
+
+def snapshot(repo: Path, ignored_work_paths: list[str] | None = None) -> tuple[dict[str, Any] | None, GuardResult | None]:
     if not repo.is_dir() or not is_git_repo(repo):
         return None, GuardResult("BLOCKED", "GIT-001", "repository is missing or is not a Git work tree")
     try:
@@ -102,9 +146,16 @@ def snapshot(repo: Path) -> tuple[dict[str, Any] | None, GuardResult | None]:
             run_git(repo, "ls-files", "--stage", "-z").encode("utf-8")
         ).hexdigest()
         changes = porcelain(repo)
-        ignored = run_git(repo, "ls-files", "--others", "--ignored", "--exclude-standard", "-z").split("\0")
     except subprocess.CalledProcessError as exc:
-        return None, GuardResult("BLOCKED", "GIT-002", exc.output.strip())
+        message = "detached HEAD; checkout a branch before PREPARE" if "symbolic-ref" in " ".join(exc.cmd) else git_error(exc)
+        return None, GuardResult("BLOCKED", "GIT-002", message)
+    patterns = ignored_work_paths or []
+    problem = validate_ignored_work_paths(repo, patterns)
+    if problem:
+        return None, problem
+    ignored, problem = filtered_ignored(repo, patterns)
+    if problem:
+        return None, problem
     return {
         "snapshotVersion": SNAPSHOT_VERSION,
         "head": head,
@@ -112,7 +163,8 @@ def snapshot(repo: Path) -> tuple[dict[str, Any] | None, GuardResult | None]:
         "indexTree": index_tree,
         "tracked": tracked_files(repo),
         "porcelain": changes,
-        "ignored": sorted(item for item in ignored if item),
+        "ignored": ignored,
+        "ignoredWorkPaths": patterns,
     }, None
 
 
@@ -147,7 +199,8 @@ def validate_snapshot(snapshot_data: Any) -> GuardResult | None:
     if not isinstance(snapshot_data, dict) or snapshot_data.get("snapshotVersion") != SNAPSHOT_VERSION:
         return GuardResult("BLOCKED", "SNAPSHOT-001", "snapshot is missing or has an unknown format")
     required = {"head", "branch", "indexTree", "tracked", "porcelain", "ignored"}
-    if set(snapshot_data) != required | {"snapshotVersion"}:
+    valid_fields = (required | {"snapshotVersion"}, required | {"snapshotVersion", "ignoredWorkPaths"})
+    if set(snapshot_data) not in valid_fields:
         return GuardResult("BLOCKED", "SNAPSHOT-002", "snapshot has unexpected or missing fields")
     if not all(isinstance(snapshot_data[key], str) for key in ("head", "branch", "indexTree")):
         return GuardResult("BLOCKED", "SNAPSHOT-002", "snapshot Git fields must be strings")
@@ -179,8 +232,8 @@ def snapshot_digest(snapshot_path: Path) -> str:
     return hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
 
 
-def write_snapshot(repo: Path, destination: Path) -> GuardResult:
-    state, problem = snapshot(repo)
+def write_snapshot(repo: Path, destination: Path, ignored_work_paths: list[str] | None = None) -> GuardResult:
+    state, problem = snapshot(repo, ignored_work_paths)
     if problem:
         return problem
     if state["porcelain"] or state["ignored"]:
@@ -217,13 +270,17 @@ def verify_scope(repo: Path, scope: dict[str, Any], snapshot_path: Path, expecte
     problem = validate_snapshot(snapshot_data)
     if problem:
         return problem
-    current, problem = snapshot(repo)
+    patterns = snapshot_data.get("ignoredWorkPaths", scope.get("ignoredWorkPaths", []))
+    problem = validate_ignored_work_paths(repo, patterns)
     if problem:
         return problem
-    if current["head"] != snapshot_data["head"] or current["branch"] != snapshot_data["branch"]:
-        return GuardResult("BLOCKED", "GIT-003", "HEAD or branch changed since snapshot")
-    if current["indexTree"] != snapshot_data["indexTree"]:
-        return GuardResult("BLOCKED", "GIT-004", "index changed since snapshot")
+    current, problem = snapshot(repo, patterns)
+    if problem:
+        return problem
+    if current["branch"] != snapshot_data["branch"]:
+        return GuardResult("BLOCKED", "GIT-003", "branch changed since snapshot")
+    if subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", snapshot_data["head"], current["head"]], capture_output=True).returncode:
+        return GuardResult("BLOCKED", "GIT-003", "snapshot base is no longer an ancestor of HEAD")
     if current["ignored"] != snapshot_data["ignored"]:
         return GuardResult("BLOCKED", "GIT-005", "ignored path inventory changed since snapshot; ignored content is not monitored")
     before = snapshot_data["tracked"]
@@ -244,10 +301,32 @@ def verify_scope(repo: Path, scope: dict[str, Any], snapshot_path: Path, expecte
         if "from" in entry:
             changes.append(("renamed-from", entry["from"]))
             changes.append(("renamed-to", entry["path"]))
+    try:
+        records = run_git(repo, "diff", "--name-status", "-z", f"{snapshot_data['head']}..{current['head']}").split("\0")
+    except subprocess.CalledProcessError as error:
+        return GuardResult("BLOCKED", "GIT-002", git_error(error))
+    index = 0
+    while index < len(records):
+        status = records[index]
+        index += 1
+        if not status:
+            continue
+        if index >= len(records):
+            return GuardResult("BLOCKED", "GIT-002", "invalid Git diff record")
+        path = records[index]
+        index += 1
+        if status.startswith(("R", "C")):
+            if index >= len(records):
+                return GuardResult("BLOCKED", "GIT-002", "invalid Git rename record")
+            changes.extend([("renamed-from", path), ("renamed-to", records[index])])
+            index += 1
+        else:
+            changes.append(({"A": "created", "D": "deleted"}.get(status[0], "modified"), path))
     if not changes:
         return GuardResult("PASS", "SCOPE-000", "no changes detected")
+    renamed_sources = {path for kind, path in changes if kind == "renamed-from"}
     for kind, path in changes:
-        if kind == "deleted" and not scope.get("deletionPolicy", {}).get("allowed", False):
+        if kind == "deleted" and path not in renamed_sources and not scope.get("deletionPolicy", {}).get("allowed", False):
             return GuardResult("FAIL", "SCOPE-012", f"deletion is not allowed: {path}")
         if not allowed(path, scope):
             protected = any(scope_match(path, rule) for rule in scope["protectedPaths"])

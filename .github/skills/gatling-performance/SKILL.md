@@ -16,6 +16,8 @@ controlled stress profiles.
 - Use only a local or explicitly authorized non-production base URL.
 - Require the base URL through configuration; never hardcode a production
   destination.
+- A standard Gatling Maven `pom.xml`, including XML namespaces, is valid. Read
+  the target base URL from `TARGET_BASE_URL` in simulation configuration.
 - Do not use third-party services, customer data, destructive endpoints, or
   unbounded arrival rates.
 - Make test data unique and keep the target environment disposable.

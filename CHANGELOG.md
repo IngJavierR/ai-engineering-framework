@@ -4,7 +4,7 @@ Los cambios se registran por versión preparada para publicación o
 publicada. Una entrada sin fecha no implica que exista un tag, release
 ni artefacto publicado.
 
-## [0.7.0-rc.2] - En preparación
+## [0.7.0-rc.3] - En preparación
 
 ### Añadido
 
@@ -24,14 +24,15 @@ ni artefacto publicado.
 
 ### Corregido
 
-- El scaffold backend ahora registra el consumidor proporcionado y crea el
-  changelog maestro de Liquibase cuando todavía no existe.
-- La validación backend resuelve recursos desde el consumidor por defecto,
-  permite preflight sin changelog y exige su existencia durante verify.
-- El workflow backend PREPARE/VERIFY aplica el alcance Git declarado sin
-  duplicar el guard reutilizable de M2.
-- La referencia Liquibase incorpora validación PostgreSQL para stacks no JVM
-  con Docker, Liquibase 5.x y LPM.
+- H1: `--consumer` se resuelve de forma uniforme desde el directorio actual.
+- H2: el scaffold no ensucia el consumidor y refresh informa árboles sucios.
+- H3: los artefactos ignorados declarados no bloquean PREPARE/VERIFY.
+- H4: VERIFY evalúa commits descendientes de la base dentro del alcance.
+- H5: Gatling analiza solo fuentes/configuración y no namespaces Maven.
+- H6: la plantilla backend contiene respuesta 404 y caso negativo coherente.
+- H7: VERIFY requiere changesets y simulaciones que referencien escenarios.
+- H8: el scaffold frontend admite `--frontend-root` para monorepos.
+- H9: el workflow backend informa `backendEvidence` y sus límites reales.
 
 ## [0.6.0-rc.1] - Release candidate local, no publicada
 
