@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create M2 feature input templates.")
     parser.add_argument("--feature-id", required=True)
-    parser.add_argument("--stack", choices=("angular", "react"), required=True)
+    parser.add_argument("--stack", choices=("angular", "react", "java-spring", "python-fastapi", "generic"), required=True)
     parser.add_argument("--consumer", required=True)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
@@ -21,6 +21,14 @@ def main() -> int:
     if output.exists() and any(output.iterdir()):
         raise SystemExit("ERROR: output directory must be absent or empty")
     output.mkdir(parents=True, exist_ok=True)
+    if args.stack in {"java-spring", "python-fastapi", "generic"}:
+        template = ROOT / "docs" / "backend" / "examples" / "customer-api"
+        for name in ("backend.input.yaml", "openapi.yaml", "test-cases.yaml"):
+            shutil.copy2(template / name, output / name)
+        for path in (output / "backend.input.yaml", output / "test-cases.yaml"):
+            path.write_text(path.read_text(encoding="utf-8").replace("FEAT-CUSTOMER-API-001", args.feature_id), encoding="utf-8")
+        print(f"Created illustrative backend templates in {output}")
+        return 0
     template = ROOT / "docs" / "m2" / "examples" / "customer-profile"
     for name in ("specification.md", "mockup.html", "unit-tests.yaml", f"{args.stack}.input.yaml"):
         shutil.copy2(template / name, output / name)

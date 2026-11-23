@@ -192,7 +192,7 @@ def main() -> None:
     parser.add_argument("--version", required=True)
     parser.add_argument("--client-policy", required=True, type=Path)
     parser.add_argument("--capability", action="append", default=[])
-    parser.add_argument("--profile", choices=["java-spring", "angular", "react", "python-fastapi"], action="append", default=[])
+    parser.add_argument("--profile", choices=["java-spring", "angular", "react", "python-fastapi", "backend"], action="append", default=[])
     parser.add_argument("--migrate-stack", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--replace-framework-artifacts", action="store_true")

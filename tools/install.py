@@ -41,7 +41,8 @@ LEGACY_MANAGED_FILES = [
 ]
 BASE_CAPABILITY = "java-base"
 UNIVERSAL_CAPABILITY = "universal-governance"
-STACK_PROFILES = frozenset({"java-spring", "angular", "react", "python-fastapi"})
+STACK_PROFILES = frozenset({"java-spring", "angular", "react", "python-fastapi", "backend"})
+AGGREGATE_CAPABILITIES = frozenset({"backend-contract-first"})
 FRONTEND_CAPABILITIES = frozenset({
     "frontend-ui-design",
     "angular-ui-implementation",
@@ -135,7 +136,9 @@ def validate_inventory_path(relative):
 
 
 def validate_capability_artifacts(capability, artifacts):
-    if not isinstance(artifacts, list) or (not artifacts and capability not in STACK_PROFILES):
+    if not isinstance(artifacts, list) or (
+        not artifacts and capability not in STACK_PROFILES | AGGREGATE_CAPABILITIES
+    ):
         raise ValueError(
             f"Capability has an invalid artifact list: {capability}"
         )
@@ -226,11 +229,15 @@ def resolve_capabilities(requested, inventory=None, base_capability=BASE_CAPABIL
 
         capability_artifacts = definition.get("artifacts")
         validate_capability_artifacts(capability, capability_artifacts)
+        capability_seen_artifacts = set()
         for relative in capability_artifacts:
-            if relative in seen_artifacts:
+            if relative in capability_seen_artifacts:
                 raise ValueError(
                     f"Duplicate capability artifact path: {relative}"
                 )
+            capability_seen_artifacts.add(relative)
+            if relative in seen_artifacts:
+                continue
             seen_artifacts.add(relative)
             artifacts.append(relative)
         seen_capabilities.add(capability)

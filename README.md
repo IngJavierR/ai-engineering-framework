@@ -105,6 +105,7 @@ políticas reutilizables del framework, no componentes de una aplicación.
 - `.github/skills/openapi-to-ddd/SKILL.md`
   - `references/ddd-structure.md`
   - `references/contract-compatibility.md`
+  - `references/backend-test-cases.md`
 - `.github/skills/liquibase-versioning/SKILL.md`
   - `references/xml-conventions.md`
 - `.github/skills/gatling-performance/SKILL.md`
@@ -210,7 +211,8 @@ un consumidor los solicite de forma explícita y compatible.
 | `java-spring` | `universal-governance` | `java-base`, Gatling, seguridad | Angular, React, FastAPI |
 | `angular` | `universal-governance` | diseño/implementación Angular, Cypress, seguridad | Java, React, FastAPI |
 | `react` | `universal-governance` | diseño/implementación React, Cypress, seguridad | Java, Angular, FastAPI |
-| `python-fastapi` | `universal-governance` | FastAPI, seguridad | Java, Angular, React |
+| `python-fastapi` | `universal-governance` | FastAPI, contrato OpenAPI, Liquibase, Gatling, seguridad | Java, Angular, React |
+| `backend` | `universal-governance` | contrato OpenAPI, Liquibase, Gatling, seguridad | Java y perfiles de UI |
 
 ```bash
 python3 tools/install.py --target ../consumer-project --profile react

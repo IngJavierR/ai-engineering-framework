@@ -14,8 +14,8 @@ description: >
 
 ## Mission
 
-Build or evolve Java APIs using an approved OpenAPI
-contract and a maintainable DDD architecture.
+Build or evolve backend REST APIs using an approved OpenAPI
+contract and the consumer's approved architecture.
 
 Support:
 - NEW_PROJECT
@@ -34,9 +34,10 @@ Follow repository and project instructions:
 - Liquibase structural governance
 - Applicable client policies
 
-Read references:
-- references/ddd-structure.md
-- references/contract-compatibility.md
+Read `references/contract-compatibility.md`. Read
+`references/ddd-structure.md` only for a Java Spring consumer where it is
+installed. For Python FastAPI, use `fastapi-development`; for another stack,
+use its approved architecture or report `BLOCKED` with the concrete question.
 
 If structural database changes are required,
 use the liquibase-versioning skill when available.
@@ -49,6 +50,7 @@ and do not bypass Liquibase XML requirements.
 ### 1. Discover Inputs
 
 Identify:
+- `backend.input.yaml` and its approved OpenAPI and `test-cases.yaml` inputs.
 - OpenAPI document and specification version
 - Functional requirements
 - Acceptance criteria and test cases
@@ -58,6 +60,11 @@ Identify:
 - Approved project and client policies
 
 Do not invent missing business rules.
+
+Run `tools/validate_backend_contracts.py --input backend.input.yaml` before
+implementation. Without a `VALID` result, an approved contract, or declared
+test cases, report `BLOCKED` unless a client policy explicitly grants an
+exception.
 
 ### 2. Validate OpenAPI
 
@@ -116,9 +123,9 @@ Do not invent domain behavior from DTO names.
 
 Use the approved project architecture.
 
-For a new Java Spring Boot project, the default
-reference architecture is DDD with hexagonal
-boundaries.
+For a new Java Spring Boot project, the default reference architecture is DDD
+with hexagonal boundaries. Python FastAPI and other stacks retain their
+approved architecture.
 
 Separate:
 - Domain
@@ -159,7 +166,9 @@ When structural database changes are required:
 - Preserve previously executed changesets.
 - Update the root changelog as required.
 - Evaluate data preservation and compatibility.
-- Never use Hibernate automatic DDL.
+- Never use ORM or automatic DDL, including Hibernate `ddl-auto`, SQLAlchemy
+  `create_all`, applied Alembic `autogenerate`, EF `EnsureCreated`, Prisma
+  `db push`, TypeORM `synchronize`, or Sequelize `sync`.
 
 Do not generate uncontrolled DDL scripts.
 
@@ -186,6 +195,9 @@ Document unsupported constructs and validation limitations. Do not
 present a partial validator as complete OpenAPI conformance.
 
 Use supplied acceptance criteria.
+
+Implement every case declared in `test-cases.yaml` and report its ID and
+result. Read `references/backend-test-cases.md` for case design guidance.
 
 Do not infer functional success solely
 from generated controller compilation.
@@ -223,7 +235,19 @@ tooling is available:
 - Run integration tests.
 - Run contract tests.
 - Validate Liquibase if database changes exist.
+- Run the declared Gatling `smoke` profile when performance is required.
 - Report regression results.
+
+Use the declared consumer commands. At minimum, evidence must distinguish:
+
+| Validation | Java Spring | Python FastAPI | Generic |
+| --- | --- | --- | --- |
+| Compile/types | `mvn -q -DskipTests compile` | `ruff`/`mypy` if present | Consumer command |
+| Unit/integration | `mvn test` | `pytest` | Consumer command |
+| Runtime contract | Request/response validator | `schemathesis`/`openapi-core` | Declared tool |
+| Generated compatibility | springdoc `/v3/api-docs` | `app.openapi()` | `/openapi.json` |
+| Liquibase | Maven `validate` + disposable `update` | CLI/Docker equivalent | CLI/Docker equivalent |
+| Gatling | `mvn gatling:test` | `performance/gatling` `./mvnw gatling:test` | Same as Python |
 
 Use evidence states consistently:
 - GENERATED: artifacts were produced; compilation is not implied.

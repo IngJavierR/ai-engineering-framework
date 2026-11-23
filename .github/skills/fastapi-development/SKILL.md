@@ -16,8 +16,8 @@ does not impose Spring, JPA, Java DDD, or Java-specific migration patterns.
 - Use type annotations and Pydantic request/response models at HTTP boundaries.
 - Keep routers, application services, and data-access adapters separate using
   interfaces/protocols appropriate to Python.
-- Treat generated OpenAPI as a contract; preserve documented status codes,
-  schemas, and security requirements.
+- Treat the approved OpenAPI contract as the source of truth. `app.openapi()`
+  must be compatible with it and real responses must be validated against it.
 - Validate input through Pydantic and map expected domain errors to deliberate
   HTTP responses without exposing internal stack traces.
 - Load secrets and environment-specific configuration from environment or a
@@ -29,8 +29,7 @@ does not impose Spring, JPA, Java DDD, or Java-specific migration patterns.
   them; do not invent an identity provider.
 - Use parameterized ORM/query APIs and protect object access at the application
   boundary.
-- For database structural changes, follow the consumer's approved migration
-  governance. Do not add a competing migration tool.
+- For database structural changes, follow `liquibase-versioning`.
 
 ## Testing and scope
 

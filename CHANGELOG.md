@@ -4,6 +4,24 @@ Los cambios se registran por versión preparada para publicación o
 publicada. Una entrada sin fecha no implica que exista un tag, release
 ni artefacto publicado.
 
+## [0.7.0-rc.1] - En preparación
+
+### Añadido
+
+- Perfil genérico `backend` y composición contract-first reutilizable para
+  Java Spring, FastAPI y otros servicios REST.
+- Esquemas `backend-service-input/v1` y `backend-test-cases/v1`, ejemplo
+  `customer-api`, scaffold y validador local de OpenAPI, casos, Liquibase y
+  escenarios Gatling.
+- Quickstart backend y referencia única para diseñar casos backend.
+
+### Cambiado
+
+- OpenAPI, Liquibase y Gatling se distribuyen como capacidades neutrales;
+  `java-base` conserva sus artefactos para verificar locks existentes.
+- FastAPI adopta contrato aprobado como fuente de verdad y Liquibase para
+  cambios estructurales.
+
 ## [0.6.0-rc.1] - Release candidate local, no publicada
 
 Mejoras de ergonomía y seguridad de instalación posteriores a `v0.5.0-rc.1`.

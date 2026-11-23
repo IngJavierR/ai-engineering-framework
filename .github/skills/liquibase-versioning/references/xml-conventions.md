@@ -12,7 +12,7 @@ native change types are insufficient.
 
 ## Changelog Layout
 
-Recommended structure for new projects:
+Recommended Java structure for new projects:
 
 src/main/resources/db/changelog/
   db.changelog-master.xml
@@ -20,8 +20,22 @@ src/main/resources/db/changelog/
     001-create-customers.xml
     002-add-customer-rfc.xml
 
+For non-Java services, use:
+
+<service-root>/db/changelog/
+  db.changelog-master.xml
+  changes/
+    001-create-customers.xml
+
 Existing projects must preserve their current
 approved changelog structure.
+
+Execute Java migrations through the approved Maven or Gradle plugin. For other
+stacks, use the Liquibase CLI or official `liquibase/liquibase` Docker image,
+with the consumer-pinned version recorded in validation evidence. If the
+consumer already manages the same schema with Alembic, Flyway, Prisma, EF, or
+another migration tool, do not add Liquibase in parallel: report `BLOCKED`
+until a migration decision or a client-policy exception is approved.
 
 ## Naming
 

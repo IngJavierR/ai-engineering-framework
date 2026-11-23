@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info:
+  title: Customer API
+  version: 1.0.0
+paths:
+  /customers/{customerId}:
+    get:
+      operationId: getCustomer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Customer, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+  /customers:
+    post:
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateCustomer'}}}
+      responses:
+        '201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '422': {description: Invalid, content: {application/json: {schema: {$ref: '#/components/schemas/ValidationError'}}}}
+components:
+  schemas:
+    Customer: {type: object, required: [id, displayName], properties: {id: {type: string}, displayName: {type: string}}}
+    CreateCustomer: {type: object, required: [displayName], properties: {displayName: {type: string, minLength: 2}}}
+    ValidationError: {type: object, properties: {detail: {type: string}}}

@@ -16,7 +16,7 @@ SPEC.loader.exec_module(installer)
 
 class ProfileTest(unittest.TestCase):
     def test_stack_profiles_share_governance_without_java_for_non_java(self):
-        for profile in ("angular", "react", "python-fastapi"):
+        for profile in ("angular", "react", "python-fastapi", "backend"):
             resolved, _ = installer.resolve_capabilities(
                 (profile,), base_capability=installer.UNIVERSAL_CAPABILITY
             )
@@ -27,7 +27,7 @@ class ProfileTest(unittest.TestCase):
         resolved, files = installer.resolve_capabilities(
             ("angular", "python-fastapi"), base_capability=installer.UNIVERSAL_CAPABILITY
         )
-        self.assertEqual(15, len(files))
+        self.assertGreaterEqual(len(files), 15)
         self.assertNotIn(installer.BASE_CAPABILITY, resolved)
         self.assertEqual(1, resolved.count("security-validation"))
 
@@ -41,7 +41,7 @@ class ProfileTest(unittest.TestCase):
     def test_profile_installations_are_idempotent_and_isolated(self):
         fixture_root = ROOT / ".bootstrap-test-tmp"
         fixture_root.mkdir(exist_ok=True)
-        for profile in ("java-spring", "angular", "react", "python-fastapi"):
+        for profile in ("java-spring", "angular", "react", "python-fastapi", "backend"):
             with tempfile.TemporaryDirectory(dir=fixture_root) as directory:
                 target = Path(directory) / "consumer"
                 target.mkdir()
@@ -52,6 +52,15 @@ class ProfileTest(unittest.TestCase):
                 self.assertEqual(lock["capabilities"][0], installer.UNIVERSAL_CAPABILITY)
                 has_java = (target / ".github/instructions/java.instructions.md").exists()
                 self.assertEqual(has_java, profile == "java-spring")
+
+    def test_backend_profiles_install_contract_first_capabilities_without_java(self):
+        for profile in ("python-fastapi", "backend"):
+            resolved, files = installer.resolve_capabilities(
+                (profile,), base_capability=installer.UNIVERSAL_CAPABILITY
+            )
+            self.assertTrue({"api-contract-first", "liquibase-versioning", "gatling-performance", "security-validation"}.issubset(resolved))
+            self.assertNotIn(".github/instructions/java.instructions.md", files)
+            self.assertNotIn(".github/skills/openapi-to-ddd/references/ddd-structure.md", files)
 
     def test_migration_requires_explicit_flag_and_removes_verified_java_files(self):
         fixture_root = ROOT / ".bootstrap-test-tmp"

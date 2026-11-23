@@ -106,6 +106,7 @@ When DDD is required by project policies:
   with managed database migrations.
 - Keep domain objects independent of persistence entities
   when required by the architecture.
+- Never use Hibernate or JPA automatic DDL to create or modify managed schemas.
 
 ## Change Management
 

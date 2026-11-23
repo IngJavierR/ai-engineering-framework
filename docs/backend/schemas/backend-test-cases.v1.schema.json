@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "backend-test-cases/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "featureId", "cases"],
+  "properties": {
+    "schemaVersion": {"const": "backend-test-cases/v1"},
+    "featureId": {"type": "string", "minLength": 1},
+    "cases": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["id", "operationId", "level", "classification", "request", "expected"], "properties": {"id": {"type": "string", "minLength": 1}, "operationId": {"type": "string", "minLength": 1}, "level": {"enum": ["unit", "integration", "contract"]}, "classification": {"type": "array", "minItems": 1, "items": {"enum": ["positive", "negative", "boundary", "security", "regression"]}, "uniqueItems": true}, "request": {"type": "object", "additionalProperties": true, "required": ["method", "path"], "properties": {"method": {"type": "string"}, "path": {"type": "string"}}}, "expected": {"type": "object", "additionalProperties": true, "required": ["status", "responseSchema"], "properties": {"status": {"type": "integer"}, "responseSchema": {"type": "string"}}}}}}
+  }
+}

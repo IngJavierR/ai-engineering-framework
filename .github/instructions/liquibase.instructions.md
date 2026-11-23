@@ -1,6 +1,6 @@
 
 ---
-applyTo: "**/*.java,**/src/main/resources/db/**,**/src/main/resources/database/**,**/src/main/resources/liquibase/**,**/src/main/resources/**/*changelog*.xml"
+applyTo: "**/*.java,**/db/changelog/**,**/*changelog*.xml,**/liquibase/**"
 ---
 
 # Database Structural Change Governance
@@ -20,8 +20,7 @@ This policy applies to new and existing projects.
 2. Never execute structural changes outside
    the approved Liquibase lifecycle.
 
-3. Never use Hibernate or JPA automatic DDL
-   to create or modify managed schemas.
+3. Never use ORM or automatic DDL to create or modify managed schemas.
 
 4. Never modify, delete or reuse a changeset
    that has already been executed.

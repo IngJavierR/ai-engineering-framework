@@ -1,14 +1,14 @@
 
 ---
-applyTo: "**/*.java,**/src/main/resources/openapi/**,**/src/main/resources/**/*openapi*.yaml,**/src/main/resources/**/*openapi*.yml,**/src/main/resources/**/*openapi*.json"
+applyTo: "**/*.java,**/openapi/**,**/*openapi*.yaml,**/*openapi*.yml,**/*openapi*.json"
 ---
 
 # OpenAPI and DDD Engineering Standards
 
 ## Purpose
 
-Implement Java APIs from OpenAPI contracts
-using approved Domain-Driven Design principles.
+Implement backend REST APIs from approved OpenAPI contracts
+using the consumer's approved architecture.
 
 Support both new and existing projects.
 
@@ -31,7 +31,7 @@ Support both new and existing projects.
 - Identify domain concepts and business rules.
 - Do not assume an endpoint equals an aggregate.
 - Separate domain, application and infrastructure.
-- Keep domain logic independent of HTTP and JPA.
+- Keep domain logic independent of HTTP and persistence frameworks.
 - Use repository abstractions where appropriate.
 - Preserve existing bounded contexts.
 
@@ -57,8 +57,7 @@ structural changes:
 - Apply the Liquibase XML governance policy.
 - Create new XML changesets.
 - Preserve previously executed changesets.
-- Never generate uncontrolled schema DDL.
-- Do not use automatic schema updates.
+- Never generate uncontrolled schema DDL or use ORM automatic schema updates.
 
 ## Contract Testing
 

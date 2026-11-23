@@ -1,7 +1,7 @@
 
 framework:
   name: ai-engineering-framework
-  version: 0.6.0-rc.1
+  version: 0.7.0-rc.1
   status: release-candidate
 
   description: >
@@ -43,6 +43,23 @@ framework:
             ".github/skills/liquibase-versioning/references/xml-conventions.md"
           ]
         },
+        "api-contract-first": {
+          "dependencies": ["universal-governance"],
+          "artifacts": [
+            ".github/instructions/openapi-ddd.instructions.md",
+            ".github/skills/openapi-to-ddd/SKILL.md",
+            ".github/skills/openapi-to-ddd/references/contract-compatibility.md",
+            ".github/skills/openapi-to-ddd/references/backend-test-cases.md"
+          ]
+        },
+        "liquibase-versioning": {
+          "dependencies": ["universal-governance"],
+          "artifacts": [
+            ".github/instructions/liquibase.instructions.md",
+            ".github/skills/liquibase-versioning/SKILL.md",
+            ".github/skills/liquibase-versioning/references/xml-conventions.md"
+          ]
+        },
         "frontend-ui-design": {
           "dependencies": [],
           "artifacts": [
@@ -78,13 +95,8 @@ framework:
           ]
         },
         "java-spring": {
-          "dependencies": ["universal-governance", "java-base"],
-          "artifacts": [
-            ".github/skills/gatling-performance/SKILL.md",
-            ".github/skills/gatling-performance/references/controlled-profiles.md",
-            ".github/skills/security-validation/SKILL.md",
-            ".github/skills/security-validation/references/reporting-guidance.md"
-          ]
+          "dependencies": ["universal-governance", "java-base", "backend-contract-first"],
+          "artifacts": []
         },
         "angular": {
           "dependencies": ["universal-governance", "angular-ui-implementation", "cypress-functional-testing", "security-validation"],
@@ -95,11 +107,15 @@ framework:
           "artifacts": []
         },
         "python-fastapi": {
-          "dependencies": ["universal-governance", "fastapi-development", "security-validation"],
+          "dependencies": ["universal-governance", "fastapi-development", "backend-contract-first"],
+          "artifacts": []
+        },
+        "backend": {
+          "dependencies": ["universal-governance", "backend-contract-first"],
           "artifacts": []
         },
         "gatling-performance": {
-          "dependencies": ["java-base"],
+          "dependencies": ["universal-governance"],
           "artifacts": [
             ".github/skills/gatling-performance/SKILL.md",
             ".github/skills/gatling-performance/references/controlled-profiles.md"
@@ -118,5 +134,9 @@ framework:
             ".github/skills/security-validation/SKILL.md",
             ".github/skills/security-validation/references/reporting-guidance.md"
           ]
+        },
+        "backend-contract-first": {
+          "dependencies": ["api-contract-first", "liquibase-versioning", "gatling-performance", "security-validation"],
+          "artifacts": []
         }
       }

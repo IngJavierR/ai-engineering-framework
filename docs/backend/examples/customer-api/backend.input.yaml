@@ -1,0 +1,30 @@
+schemaVersion: backend-service-input/v1
+featureId: FEAT-CUSTOMER-API-001
+stack: python-fastapi
+serviceRoot: backend
+consumer:
+  repositoryRoot: ../../../../tests/fixtures/fastapi
+  baseline: {commit: not-verified}
+openapi:
+  path: openapi.yaml
+  sha256: sha256:295449760516e4becbd0edd08bb86789658970073109e42f6ced6ecba1ef27f2
+  approvedVersion: 1.0.0
+  baseline: null
+testCases:
+  path: test-cases.yaml
+  sha256: sha256:d0510cb21bdd80d0810e36de1dfe235c0000e85691ec578e69c28bca0c1a8759
+database:
+  required: true
+  engine: postgresql
+  changelogRoot: backend/db/changelog/db.changelog-master.xml
+  migrationTool: liquibase
+performance:
+  required: true
+  baseUrlEnv: TARGET_BASE_URL
+  profiles: [smoke, baseline, stress]
+  scenarios:
+    - operationId: getCustomer
+      profile: [smoke, baseline, stress]
+scope:
+  allowedPaths: [{path: backend/app, kind: directory}, {path: backend/db/changelog, kind: directory}, {path: backend/tests, kind: directory}, {path: performance/gatling, kind: directory}]
+  protectedPaths: [{path: frontend, kind: directory}, {path: backend/openapi.yaml, kind: file}]

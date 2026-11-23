@@ -1,0 +1,27 @@
+schemaVersion: backend-test-cases/v1
+featureId: FEAT-CUSTOMER-API-001
+cases:
+  - id: TC-CUSTOMER-API-001-01
+    operationId: getCustomer
+    level: contract
+    classification: [positive]
+    request: {method: GET, path: "/customers/{customerId}"}
+    expected: {status: 200, responseSchema: "#/components/schemas/Customer"}
+  - id: TC-CUSTOMER-API-001-02
+    operationId: getCustomer
+    level: contract
+    classification: [negative]
+    request: {method: GET, path: "/customers/{customerId}"}
+    expected: {status: 200, responseSchema: "#/components/schemas/Customer"}
+  - id: TC-CUSTOMER-API-001-03
+    operationId: createCustomer
+    level: contract
+    classification: [positive]
+    request: {method: POST, path: /customers, body: {displayName: Ana Torres}}
+    expected: {status: 201, responseSchema: "#/components/schemas/Customer"}
+  - id: TC-CUSTOMER-API-001-04
+    operationId: createCustomer
+    level: contract
+    classification: [negative, boundary]
+    request: {method: POST, path: /customers, body: {displayName: A}}
+    expected: {status: 422, responseSchema: "#/components/schemas/ValidationError"}
