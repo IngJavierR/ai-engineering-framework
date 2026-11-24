@@ -106,6 +106,11 @@ def matches_ignored_path(path: str, patterns: list[str]) -> bool:
             directory = stripped[3:-3]
             if normalized == directory or normalized.endswith(f"/{directory}") or f"/{directory}/" in f"/{normalized}/":
                 return True
+        if stripped.startswith("**/") and not stripped.endswith("/**"):
+            # e.g. **/.env → match .env at any depth
+            suffix = stripped[3:]
+            if normalized == suffix or normalized.endswith(f"/{suffix}"):
+                return True
         if fnmatch(normalized, stripped) or fnmatch(f"{normalized}/", pattern):
             return True
     return False
@@ -120,7 +125,7 @@ def validate_ignored_work_paths(repo: Path, patterns: Any) -> GuardResult | None
     for pattern in patterns:
         if not isinstance(pattern, str) or not pattern or pattern in {"**", "*", "/"} or pattern.startswith("/") or ".." in pattern.split("/") or "\\" in pattern:
             return GuardResult("BLOCKED", "SCOPE-IGN-001", f"invalid ignoredWorkPaths pattern: {pattern!r}")
-        if any(fnmatch(path, pattern) for path in tracked):
+        if any(matches_ignored_path(path, [pattern]) for path in tracked):
             return GuardResult("BLOCKED", "SCOPE-IGN-001", f"ignoredWorkPaths matches tracked file: {pattern}")
     return None
 

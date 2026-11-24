@@ -85,6 +85,46 @@ class BackendWorkflowTest(unittest.TestCase):
         blocked, _ = workflow.workflow.verify(self.package / "backend.input.yaml", self.consumer, self.root, receipt, anchor_path, self.evidence, workflow.verify_input, workflow.scope_guard)
         self.assertEqual("FAIL", blocked.status)
 
+    def test_backend_verify_branch_change_reports_git003_before_content(self):
+        """C4: branch change must surface GIT-003 before any content error (BE-DB-*, BE-PERF-*)."""
+        self.git("switch", "-c", "feat/x")
+        prepared, receipt = workflow.workflow.prepare(self.package / "backend.input.yaml", self.consumer, self.root, self.evidence, workflow.validate_input)
+        self.assertEqual("PASS", prepared.status, prepared.payload())
+        data = json.loads(receipt.read_text())
+        anchor = {
+            "anchorVersion": workflow.workflow.ANCHOR_VERSION, "executionId": data["executionId"],
+            "receiptSha256": workflow.workflow.digest(receipt), "manifestSha256": data["manifest"]["sha256"],
+            "inputs": data["inputs"], "consumer": data["consumer"], "baseCommit": data["baseCommit"],
+            "snapshotSha256": data["snapshot"]["sha256"],
+        }
+        anchor_path = self.custody / "anchor.json"
+        workflow.workflow.atomic_json(anchor_path, anchor)
+        self.git("switch", "main")
+        result, _ = workflow.workflow.verify(self.package / "backend.input.yaml", self.consumer, self.root, receipt, anchor_path, self.evidence, workflow.verify_input, workflow.scope_guard)
+        self.assertEqual("BLOCKED", result.status)
+        payload = result.payload()
+        dump = json.dumps(payload)
+        self.assertIn("GIT-003", dump, f"Expected GIT-003: {payload}")
+        self.assertIn("feat/x", dump, f"Expected branch name feat/x: {payload}")
+        self.assertIn("main", dump, f"Expected branch name main: {payload}")
+        self.assertNotIn("BE-DB-", dump, f"Content errors must not appear before GIT-003: {payload}")
+
+    def test_backend_workflow_output_has_no_frontend_vocabulary(self):
+        """C5: PREPARE CLI output must not contain 'frontend' anywhere."""
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "tools/validate_backend_workflow.py"), "prepare",
+             "--manifest", str(self.package / "backend.input.yaml"),
+             "--consumer-repository", str(self.consumer),
+             "--workspace-root", str(self.root),
+             "--evidence-directory", str(self.evidence)],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertNotIn("frontend", json.dumps(payload).lower(),
+                         f"Frontend vocabulary in CLI output: {result.stdout}")
+        self.assertIn("backendEvidence", payload)
+
 
 if __name__ == "__main__":
     unittest.main()

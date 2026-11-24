@@ -1,26 +1,30 @@
 # Quickstart de Copilot para features frontend M2
 
-## Requisitos
-
-Instala el perfil del consumidor y las dependencias de los validadores:
+## Preparación
 
 ```bash
-python3 tools/install.py --target ../mi-frontend --profile angular --dry-run
-python3 -m pip install -r tools/requirements-frontend-contracts.txt
+cd workspace   # contiene ai-engineering-framework/, app/, features/, evidence/, custody/
+FW=ai-engineering-framework
+python3 -m pip install -r $FW/tools/requirements-frontend-contracts.txt
 ```
 
-El consumidor debe ser un repositorio Git con working tree limpio. Las
-dependencias de validación se instalan en el entorno Python elegido por el
-equipo; no las instala automáticamente `install.py`.
+Instala el perfil del consumidor:
+
+```bash
+python3 $FW/tools/install.py --target app --profile angular --dry-run
+```
+
+El consumidor debe ser un repositorio Git con working tree limpio.
 
 ## Estructura recomendada
 
 ```text
 workspace/
-├── mi-frontend/            # consumidor Git limpio
-├── features/<feature>/     # specification, mockup, YAML y manifest
-├── evidence/               # snapshot y receipt, fuera del consumidor
-└── custody/anchor.json     # anchor fuera de evidence y del consumidor
+├── ai-engineering-framework/   # framework
+├── app/                        # consumidor Git limpio
+├── features/<feature>/         # specification, mockup, YAML y manifest
+├── evidence/                   # snapshot y receipt, fuera del consumidor
+└── custody/anchor.json         # anchor fuera de evidence y del consumidor
 ```
 
 ## Flujo verificable
@@ -28,32 +32,39 @@ workspace/
 1. Crear insumos ilustrativos:
 
    ```bash
-   python3 tools/new_feature.py \
+   python3 $FW/tools/new_feature.py \
      --feature-id FEAT-PROFILE-001 \
      --stack angular \
-     --consumer mi-frontend \
+     --consumer app \
      --frontend-root frontend \
      --out features/profile
    ```
 
 2. Completar requisitos, mockup, casos unitarios, alcance y decisiones humanas.
    El scaffold queda como `illustrative-not-ready-for-execution`; no autoriza
-   implementación.
+   implementación. Confirma los cambios del consumidor si usaste `--contract-dir`:
+   ```bash
+   git -C app add -A
+   git -C app commit -m "content: prepare feature business inputs"
+   ```
+
 3. Refrescar hashes, versiones resueltas y baseline después de editar insumos:
 
    ```bash
-   python3 tools/refresh_manifest.py \
+   python3 $FW/tools/refresh_manifest.py \
      --manifest features/profile/angular.input.yaml
    ```
 
 4. Corregir errores estructurales/semánticos hasta que ambos validadores pasen.
-5. Ejecutar PREPARE con evidencia fuera del consumidor:
+
+5. Crear una rama de feature antes de PREPARE. Los patrones `ignoredWorkPaths`
+   quedan anclados en este punto y no pueden ampliarse para ocultar cambios:
 
    ```bash
-   git -C mi-frontend switch -c feat/profile-001
-   python3 tools/validate_frontend_workflow.py prepare \
+   git -C app switch -c feat/profile-001
+   python3 $FW/tools/validate_frontend_workflow.py prepare \
      --manifest features/profile/angular.input.yaml \
-     --consumer-repository mi-frontend \
+     --consumer-repository app \
      --workspace-root . \
      --evidence-directory evidence
    ```
@@ -61,37 +72,27 @@ workspace/
 6. Crear el anchor en custodia independiente:
 
    ```bash
-   python3 tools/make_anchor.py \
-     --receipt evidence/<execution-id>.receipt.json \
+   RECEIPT=$(ls -t evidence/*.receipt.json | head -1)
+   python3 $FW/tools/make_anchor.py \
+     --receipt "$RECEIPT" \
      --output custody/anchor.json
    ```
 
-   El anchor prueba correspondencia de valores, no autoridad de custodia ni
-   autoría. El invocador es responsable de conservarlo por un canal aprobado.
-7. Planear e implementar con Copilot, y finalmente ejecutar VERIFY con receipt
-   y anchor.
+7. Planear e implementar con Copilot, y finalmente ejecutar VERIFY:
 
-## Prompts recomendados
-
-**Planear**
-
-> Usa la skill `frontend-ui-design` con
-> `features/<feature>/angular.input.yaml`, el receipt
-> `evidence/<id>.receipt.json` y el anchor `custody/anchor.json`. Entrega la
-> matriz REQ→CMP→UT y el estado final.
-
-**Implementar**
-
-> Usa la skill `angular-ui-implementation` para implementar el plan aprobado
-> dentro de `allowedPaths`, con pruebas unitarias. Ejecuta solo comandos
-> existentes del proyecto y registra la evidencia en `frontend-ui-output/v1`.
-
-Para React, sustituye `angular` por `react` y usa las skills equivalentes.
+   ```bash
+   python3 $FW/tools/validate_frontend_workflow.py verify \
+     --manifest features/profile/angular.input.yaml \
+     --consumer-repository app \
+     --workspace-root . \
+     --evidence-directory evidence --receipt "$RECEIPT" \
+     --external-anchor custody/anchor.json
+   ```
 
 ## Interpretación de VERIFY
 
 `VERIFY` con `status: PASS` y `workflowStatus: BLOCKED` significa que el alcance
-Git observable es conforme, pero la evidencia de frontend sigue en `NOT_RUN`.
+Git observable es conforme, pero la evidencia de pruebas sigue en `NOT_RUN`.
 No certifica autoría, pruebas, build, typecheck ni validación formal completa.
 En un monorepo, `--frontend-root frontend` hace que las rutas del manifiesto se
 resuelvan dentro de ese directorio y protege los directorios hermanos.

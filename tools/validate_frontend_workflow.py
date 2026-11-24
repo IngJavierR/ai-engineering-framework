@@ -354,6 +354,20 @@ def verify(manifest_path: Path, consumer: Path, workspace_root: Path, receipt_pa
         return blocked("WF-ANCHOR-003", "external anchor values do not correspond to this receipt", phases), None
     phases.append(Phase("custody", "PASS", "WF-ANCHOR-000", "external anchor values correspond to the receipt; custodian authority is not verified"))
 
+    # C4: Pre-flight branch check before content validator so GIT-003 is surfaced first.
+    _snap_path = Path(receipt["snapshot"]["path"])
+    if _snap_path.is_file():
+        try:
+            _snap_data = json.loads(_snap_path.read_text(encoding="utf-8"))
+            _patterns = receipt.get("ignoredWorkPaths", [])
+            _current, _ = guard.snapshot(consumer, _patterns)
+            if _current and _snap_data.get("branch") and _current["branch"] != _snap_data["branch"]:
+                _msg = f"branch changed since snapshot (expected {_snap_data['branch']}, found {_current['branch']})"
+                phases.append(Phase("git-precheck", "BLOCKED", "GIT-003", _msg))
+                return blocked("WF-GIT-003", f"GIT-003: {_msg}", phases), None
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
+            pass
+
     document_or_result = validator(manifest_path, workspace_root, phases)
     if isinstance(document_or_result, WorkflowResult):
         return document_or_result, None

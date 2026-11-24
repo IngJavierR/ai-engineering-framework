@@ -39,10 +39,13 @@ def validate_input(manifest_path: Path, _workspace_root: Path, phases: list[Any]
     if errors:
         phases.append(workflow.Phase("structural", "BLOCKED", "BE-WF-STRUCTURAL-001", errors[0]))
         return workflow.blocked("BE-WF-STRUCTURAL-001", "structural validation failed", phases)
-    with contextlib.redirect_stdout(io.StringIO()):
+    import io as _io
+    _stderr_buf = _io.StringIO()
+    with contextlib.redirect_stdout(_io.StringIO()), contextlib.redirect_stderr(_stderr_buf):
         result = backend.main(["--input", str(manifest_path), "--phase", phase])
     if result:
-        phases.append(workflow.Phase(phase, "BLOCKED", "BE-WF-VALIDATION-001", f"backend {phase} validation failed"))
+        detail = _stderr_buf.getvalue().strip()[:300]
+        phases.append(workflow.Phase(phase, "BLOCKED", "BE-WF-VALIDATION-001", f"backend {phase} validation failed: {detail}"))
         return workflow.blocked("BE-WF-VALIDATION-001", f"backend {phase} validation failed", phases)
     phases.append(workflow.Phase(phase, "PASS", "BE-WF-VALIDATION-000", f"backend input is valid for {phase}"))
     return document
@@ -78,11 +81,17 @@ def main(argv: list[str] | None = None) -> int:
     else:
         result, artifact = workflow.verify(arguments.manifest, arguments.consumer_repository, arguments.workspace_root, arguments.receipt, arguments.external_anchor, arguments.evidence_directory, verify_input, scope_guard)
     payload = result.payload()
-    payload["backendEvidence"] = payload.pop("frontendEvidence")
-    payload["limitations"] = [
-        item.replace("frontend tests, builds, or type checks", "backend tests, builds, Liquibase, or Gatling")
-        for item in payload["limitations"]
-    ]
+    # C5: Comprehensive frontend→backend vocabulary replacement.
+    import json as _json
+    _text = _json.dumps(payload)
+    for _old, _new in [
+        ("frontend tests, builds, or type checks", "backend tests, builds, Liquibase, or Gatling"),
+        ("no attribution or frontend execution is certified", "no attribution or backend implementation evidence is certified"),
+        ("execute or validate frontend", "execute or validate backend"),
+        ("frontendEvidence", "backendEvidence"),
+    ]:
+        _text = _text.replace(_old, _new)
+    payload = _json.loads(_text)
     if artifact is not None:
         payload["artifact"] = str(artifact)
     print(workflow.json.dumps(payload, sort_keys=True))

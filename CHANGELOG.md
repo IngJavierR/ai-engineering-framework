@@ -4,6 +4,25 @@ Los cambios se registran por versión preparada para publicación o
 publicada. Una entrada sin fecha no implica que exista un tag, release
 ni artefacto publicado.
 
+## [0.7.0-rc.5] - En preparación
+
+### Corregido
+
+- C1: `ignored_defaults.py` usa `git ls-files` en lugar de recorrido en disco para detectar
+  archivos versionados; los caches y venvs no descartaron más patrones por defecto.
+- C2: `.env` y `.env.local` se agregan como patrones universales en todos los stacks.
+- C3: `pom.xml` bajo `performance/gatling/` activa únicamente el stack `gatling`, no `java`.
+- C4: VERIFY ejecuta la comprobación de rama Git antes que las validaciones de contenido;
+  `GIT-003` incluye la rama esperada y la actual.
+- C5: la salida JSON del workflow backend no contiene vocabulario `frontend`.
+- C6: los quickstarts tienen un bloque `Preparación`, usan `app` como nombre de consumidor,
+  `$FW/tools/...` para todos los comandos y `RECEIPT=$(ls -t ...)` para el receipt.
+- C7: prueba de onboarding reescrita con fixture monorepo completo y flujo backend completo.
+- C8: `tools/release_gate.sh` verifica la suite, las pruebas lentas, el profile `java-spring`
+  y la sección del CHANGELOG antes de emitir `RELEASE_GATE_PASS`.
+- C9: `tests/test_regression_rc.py` verifica receipts RC4, lista de archivos `java-spring`
+  y validación de ejemplos.
+
 ## [0.7.0-rc.4] - En preparación
 
 ### Corregido

@@ -1,0 +1,14 @@
+.github/instructions/global-governance.instructions.md
+.github/instructions/java.instructions.md
+.github/instructions/liquibase.instructions.md
+.github/instructions/openapi-ddd.instructions.md
+.github/skills/gatling-performance/SKILL.md
+.github/skills/gatling-performance/references/controlled-profiles.md
+.github/skills/liquibase-versioning/SKILL.md
+.github/skills/liquibase-versioning/references/xml-conventions.md
+.github/skills/openapi-to-ddd/SKILL.md
+.github/skills/openapi-to-ddd/references/backend-test-cases.md
+.github/skills/openapi-to-ddd/references/contract-compatibility.md
+.github/skills/openapi-to-ddd/references/ddd-structure.md
+.github/skills/security-validation/SKILL.md
+.github/skills/security-validation/references/reporting-guidance.md

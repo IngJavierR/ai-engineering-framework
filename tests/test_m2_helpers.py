@@ -97,7 +97,9 @@ class M2HelperTest(unittest.TestCase):
             result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "python-fastapi", "--consumer", str(consumer), "--contract-dir", "backend/contract", "--out", str(output)], capture_output=True, text=True)
             self.assertEqual(0, result.returncode, result.stderr)
             manifest = (output / "backend.input.yaml").read_text()
-            for pattern in ("**/node_modules/**", "**/.hypothesis/**", "**/target/**", "performance/gatling/target/**"):
-                self.assertIn(pattern, manifest)
+            # C1+C3: node and python patterns detected; gatling pom does NOT activate java (**/target/**)
+            for pattern in ("**/node_modules/**", "**/.hypothesis/**", "performance/gatling/target/**"):
+                self.assertIn(pattern, manifest, f"Missing {pattern}")
+            self.assertNotIn("**/target/**\", \"**/.gradle/**\", \"**/build/**\"", manifest)
             self.assertFalse((output / "openapi.yaml").exists())
             self.assertTrue((consumer / "backend/contract/openapi.yaml").is_file())

@@ -1,0 +1,29 @@
+schemaVersion: frontend-unit-tests/v1
+featureId: FEAT-APP-001
+cases:
+  - id: UT-APP-001-01-01
+    title: Renderiza el campo Nombre visible
+    requirementIds: [REQ-APP-001-01]
+    componentIds: [CMP-APP-001-01]
+    priority: high
+    target:
+      type: component
+      conceptualUnitId: CMP-APP-001-01
+      name: appProfileForm
+    classification: [positive]
+    preconditions:
+      - statement: El componente se renderiza de forma aislada.
+    mocks: []
+    input: {}
+    action: {type: render, operation: renderAppProfileForm}
+    expected:
+      accessibleControls:
+        - role: textbox
+          name: Nombre visible
+      externalHttpCalls: 0
+    async: {isAsync: false, timerControl: not-applicable}
+    isolation:
+      domSimulationAllowed: true
+      externalHttpAllowed: false
+      realBrowserAllowed: false
+      endToEndNavigationAllowed: false

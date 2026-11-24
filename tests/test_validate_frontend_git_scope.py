@@ -257,6 +257,34 @@ class GitScopeTestCase(unittest.TestCase):
         self.assertEqual("PASS", guard.verify_scope(self.repo, self.document_scope(), self.snapshot_path, digest).status)
         self.assertLess(time.monotonic() - started, 10)
 
+    def test_t22_dotenv_ignored_does_not_block_prepare(self):
+        """C2: .env ignored by git → PREPARE PASS."""
+        self.write(".gitignore", ".env\n")
+        self.git("add", ".gitignore"); self.git("commit", "-m", "ignore .env")
+        self.write(".env", "secret")
+        # With **/.env pattern, should PASS
+        result = guard.write_snapshot(self.repo, self.snapshot_path, ["**/.env"])
+        self.assertEqual("PASS", result.status, result)
+
+    def test_t23_dotenv_tracked_not_hidden(self):
+        """C2: .env versioned → pattern omitted (via safe_patterns_for warning); SCOPE-* on change."""
+        self.write(".env", "tracked_env")
+        self.git("add", ".env"); self.git("commit", "-m", "version .env")
+        # Pattern validation must reject matching tracked files
+        result = guard.validate_ignored_work_paths(self.repo, ["**/.env"])
+        self.assertIsNotNone(result)
+        self.assertEqual("SCOPE-IGN-001", result.code)
+
+    def test_t24_env_example_change_detected(self):
+        """C2: .env.example versioned and modified → FAIL SCOPE-* (not hidden by .env pattern)."""
+        self.write(".gitignore", ".env\n")
+        self.write(".env.example", "template")
+        self.git("add", ".gitignore", ".env.example"); self.git("commit", "-m", "example")
+        self.capture()
+        self.write(".env.example", "changed")
+        result = self.verify()
+        self.assertIn(result.code, {"SCOPE-008", "SCOPE-009", "SCOPE-012"}, f"Expected scope fail: {result}")
+
     def document_scope(self):
         return yaml.safe_load(self.manifest.read_text())["scope"]
 
