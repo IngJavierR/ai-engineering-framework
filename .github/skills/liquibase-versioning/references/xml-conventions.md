@@ -55,22 +55,46 @@ credentials in this command. Record the pinned image tag, installed extension,
 and PostgreSQL version in validation evidence. Run `update` only against an
 authorized disposable or target environment after validation.
 
-On Docker Desktop for macOS, use a Compose network instead of `--network host`:
+On Docker Desktop for macOS, build the extension once and use a Compose network
+instead of `--network host`:
 
 ```yaml
-services:
-  postgres:
-    image: postgres:16
-  liquibase:
-    image: liquibase/liquibase:5.0
-    depends_on: [postgres]
-    working_dir: /workspace
-    volumes: [".:/workspace"]
-    command: sh -c 'lpm add postgresql --global && liquibase --changelog-file=backend/db/changelog/db.changelog-master.xml validate'
+# db/Dockerfile
+FROM liquibase/liquibase:5.0
+RUN lpm add postgresql --global
 ```
 
-Configure the approved PostgreSQL credentials through the consumer environment;
-do not commit them to the Compose file.
+```yaml
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:18
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes: ["postgres-data:/var/lib/postgresql"]
+  liquibase:
+    build: ./db
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes: ["./backend/db/changelog:/workspace/changelog:ro"]
+    environment:
+      LIQUIBASE_COMMAND_URL: ${LIQUIBASE_COMMAND_URL}
+      LIQUIBASE_COMMAND_USERNAME: ${LIQUIBASE_COMMAND_USERNAME}
+      LIQUIBASE_COMMAND_PASSWORD: ${LIQUIBASE_COMMAND_PASSWORD}
+      LIQUIBASE_COMMAND_CHANGELOG_FILE: ${LIQUIBASE_COMMAND_CHANGELOG_FILE}
+volumes:
+  postgres-data:
+```
+
+Store the four `LIQUIBASE_COMMAND_*` values in an uncommitted `.env`, then run
+`docker compose --profile tools run --rm liquibase validate`, `update`, or
+`status`. Do not put credentials in the Compose file.
 
 ## Naming
 

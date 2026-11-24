@@ -86,3 +86,18 @@ class M2HelperTest(unittest.TestCase):
             self.assertIn("lockfilePath: frontend/package-lock.json", manifest)
             self.assertIn("path: frontend/src/app/features/customer-profile", manifest)
             self.assertIn("path: backend, kind: directory", manifest)
+
+    def test_scaffolds_include_detected_monorepo_ignored_paths_and_contract_dir_removes_copies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); consumer = root / "consumer"; consumer.mkdir()
+            subprocess.run(["git", "-C", str(consumer), "init", "-q"], check=True)
+            for relative in ("frontend/package.json", "backend/pyproject.toml", "performance/gatling/pom.xml"):
+                path = consumer / relative; path.parent.mkdir(parents=True, exist_ok=True); path.write_text("{}")
+            output = root / "backend-feature"
+            result = subprocess.run(["python3", str(SCAFFOLD), "--feature-id", "FEAT-SAMPLE-001", "--stack", "python-fastapi", "--consumer", str(consumer), "--contract-dir", "backend/contract", "--out", str(output)], capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            manifest = (output / "backend.input.yaml").read_text()
+            for pattern in ("**/node_modules/**", "**/.hypothesis/**", "**/target/**", "performance/gatling/target/**"):
+                self.assertIn(pattern, manifest)
+            self.assertFalse((output / "openapi.yaml").exists())
+            self.assertTrue((consumer / "backend/contract/openapi.yaml").is_file())

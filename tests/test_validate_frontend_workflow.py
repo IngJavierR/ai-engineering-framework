@@ -328,6 +328,11 @@ class FrontendWorkflowTestCase(unittest.TestCase):
         self.assertIn("does not authenticate", limitations)
         self.assertIn("invoker is responsible", limitations)
 
+    def test_t11_warns_when_preparing_on_main(self):
+        result, _ = self.prepare()
+        self.assertEqual("PASS", result.status)
+        self.assertIn("WF-PREPARE-WARN-001", [phase.code for phase in result.phases])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -125,14 +125,29 @@ def validate_ignored_work_paths(repo: Path, patterns: Any) -> GuardResult | None
     return None
 
 
+def ignored_summary(paths: list[str], label: str) -> str:
+    preview = ", ".join(paths[:10])
+    suffix = "" if len(paths) <= 10 else ", ..."
+    return f"{len(paths)} {label}: {preview}{suffix}"
+
+
 def filtered_ignored(repo: Path, patterns: list[str]) -> tuple[list[str], GuardResult | None]:
-    ignored = sorted(item for item in run_git(repo, "ls-files", "--others", "--ignored", "--exclude-standard", "-z").split("\0") if item)
+    ignored = sorted(item for item in run_git(repo, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z").split("\0") if item)
+    expanded: list[str] = []
     for path in ignored:
-        if matches_ignored_path(path, patterns):
-            try:
-                subprocess.check_output(["git", "-C", str(repo), "check-ignore", "-q", "--", path], stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError:
-                return [], GuardResult("BLOCKED", "SCOPE-IGN-001", f"ignoredWorkPaths match is not Git-ignored: {path}")
+        if path.endswith("/") and not matches_ignored_path(path, patterns):
+            children = [item for item in run_git(repo, "ls-files", "--others", "--ignored", "--exclude-standard", "-z", "--", path).split("\0") if item]
+            expanded.extend(children or [path])
+        else:
+            expanded.append(path)
+    ignored = sorted(set(expanded))
+    covered = [path for path in ignored if matches_ignored_path(path, patterns)]
+    if covered:
+        process = subprocess.run(["git", "-C", str(repo), "check-ignore", "-z", "--stdin"], input="\0".join(covered) + "\0", text=True, capture_output=True)
+        returned = set(filter(None, process.stdout.split("\0")))
+        missing = sorted(set(covered) - returned)
+        if process.returncode not in {0, 1} or missing:
+            return [], GuardResult("BLOCKED", "SCOPE-IGN-001", f"ignoredWorkPaths match is not Git-ignored: {ignored_summary(missing or covered, 'paths')}")
     return [path for path in ignored if not matches_ignored_path(path, patterns)], None
 
 
@@ -224,7 +239,8 @@ def validate_snapshot(snapshot_data: Any) -> GuardResult | None:
     if not all(canonical_path(item) for item in snapshot_data["ignored"]):
         return GuardResult("BLOCKED", "SNAPSHOT-002", "snapshot ignored entry is invalid")
     if snapshot_data["porcelain"] or snapshot_data["ignored"]:
-        return GuardResult("BLOCKED", "SNAPSHOT-003", "initial repository contains pre-existing changes or ignored files")
+        detail = ignored_summary(snapshot_data["ignored"], "ignored paths not covered by ignoredWorkPaths") if snapshot_data["ignored"] else "pre-existing working-tree changes"
+        return GuardResult("BLOCKED", "SNAPSHOT-003", detail)
     return None
 
 
@@ -237,7 +253,8 @@ def write_snapshot(repo: Path, destination: Path, ignored_work_paths: list[str] 
     if problem:
         return problem
     if state["porcelain"] or state["ignored"]:
-        return GuardResult("BLOCKED", "SNAPSHOT-003", "repository is not clean at capture")
+        detail = ignored_summary(state["ignored"], "ignored paths not covered by ignoredWorkPaths") if state["ignored"] else "repository has pre-existing working-tree changes"
+        return GuardResult("BLOCKED", "SNAPSHOT-003", detail)
     if destination.resolve().is_relative_to(repo.resolve()):
         return GuardResult("BLOCKED", "SNAPSHOT-004", "snapshot must be outside the consumer repository")
     try:
@@ -278,11 +295,12 @@ def verify_scope(repo: Path, scope: dict[str, Any], snapshot_path: Path, expecte
     if problem:
         return problem
     if current["branch"] != snapshot_data["branch"]:
-        return GuardResult("BLOCKED", "GIT-003", "branch changed since snapshot")
+        return GuardResult("BLOCKED", "GIT-003", f"branch changed since snapshot (expected {snapshot_data['branch']}, found {current['branch']})")
     if subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", snapshot_data["head"], current["head"]], capture_output=True).returncode:
         return GuardResult("BLOCKED", "GIT-003", "snapshot base is no longer an ancestor of HEAD")
     if current["ignored"] != snapshot_data["ignored"]:
-        return GuardResult("BLOCKED", "GIT-005", "ignored path inventory changed since snapshot; ignored content is not monitored")
+        changed = sorted(set(current["ignored"]) ^ set(snapshot_data["ignored"]))
+        return GuardResult("BLOCKED", "GIT-005", ignored_summary(changed, "ignored paths changed outside ignoredWorkPaths"))
     before = snapshot_data["tracked"]
     after = current["tracked"]
     changes: list[tuple[str, str]] = []

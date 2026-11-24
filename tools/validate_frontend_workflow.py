@@ -198,6 +198,8 @@ def prepare(manifest_path: Path, consumer: Path, workspace_root: Path, evidence:
         return blocked("WF-SNAPSHOT-001", "initial snapshot capture failed", phases), None
     try:
         snapshot_data = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        if snapshot_data["branch"] in {"main", "master", "develop"}:
+            phases.append(Phase("branch", "WARN", "WF-PREPARE-WARN-001", f"PREPARE is running on shared branch {snapshot_data['branch']}; create a feature branch before implementation"))
         receipt = {
             "receiptVersion": RECEIPT_VERSION,
             "executionId": execution_id,

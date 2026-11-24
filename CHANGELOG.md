@@ -4,6 +4,22 @@ Los cambios se registran por versión preparada para publicación o
 publicada. Una entrada sin fecha no implica que exista un tag, release
 ni artefacto publicado.
 
+## [0.7.0-rc.4] - En preparación
+
+### Corregido
+
+- R1/R2: los defaults ignorados se detectan desde todos los stacks del
+  consumidor y quedan anclados entre PREPARE y VERIFY.
+- R3: los quickstarts usan una rama de feature y los cambios de rama identifican
+  la rama esperada y la actual.
+- R4/R6: el frontend monorepo prefija todo su alcance y los contratos en
+  `--contract-dir` no se duplican fuera del consumidor.
+- R5: el inventario de ignorados usa directorios y una comprobación Git por lote.
+- R7: el quickstart backend unifica evidencia/custodia y versiona el contrato.
+- R8: la referencia Compose de Liquibase usa imagen construida, healthcheck y
+  variables de entorno sin credenciales literales.
+- R9: el workflow backend mantiene vocabulario backend en su salida.
+
 ## [0.7.0-rc.3] - En preparación
 
 ### Añadido

@@ -5,10 +5,12 @@ import json
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 import yaml
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "validate_frontend_git_scope.py"
@@ -226,6 +228,37 @@ class GitScopeTestCase(unittest.TestCase):
         result = guard.write_snapshot(self.repo, self.snapshot_path)
         self.assertEqual("GIT-002", result.code)
         self.assertIn("detached HEAD", result.message)
+
+    def test_t20_reports_uncovered_ignored_paths_and_branch_names(self):
+        self.write(".gitignore", ".env\n")
+        self.git("add", ".gitignore"); self.git("commit", "-m", "ignore env")
+        self.write(".env", "secret")
+        result = guard.write_snapshot(self.repo, self.snapshot_path)
+        self.assertEqual("SNAPSHOT-003", result.code)
+        self.assertIn(".env", result.message)
+        (self.repo / ".env").unlink(); self.capture()
+        self.git("switch", "-c", "other")
+        result = self.verify()
+        self.assertEqual("GIT-003", result.code)
+        self.assertIn("expected", result.message)
+        self.assertIn("other", result.message)
+
+    @pytest.mark.slow
+    def test_t21_many_ignored_files_are_bounded(self):
+        self.write(".gitignore", "frontend/node_modules/\n")
+        self.git("add", ".gitignore"); self.git("commit", "-m", "ignore cache")
+        cache = self.repo / "frontend/node_modules"; cache.mkdir(parents=True)
+        for index in range(50_000):
+            (cache / f"{index}.js").write_text("x")
+        started = time.monotonic()
+        result = guard.write_snapshot(self.repo, self.snapshot_path, ["**/node_modules/**"])
+        self.assertEqual("PASS", result.status, result)
+        digest = "sha256:" + guard.snapshot_digest(self.snapshot_path)
+        self.assertEqual("PASS", guard.verify_scope(self.repo, self.document_scope(), self.snapshot_path, digest).status)
+        self.assertLess(time.monotonic() - started, 10)
+
+    def document_scope(self):
+        return yaml.safe_load(self.manifest.read_text())["scope"]
 
 
 if __name__ == "__main__":

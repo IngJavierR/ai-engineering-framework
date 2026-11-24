@@ -15,6 +15,13 @@ class LiquibasePostgresqlReferenceTest(unittest.TestCase):
         self.assertIn("liquibase/liquibase:5.0", content)
         self.assertIn("lpm add postgresql", content)
 
+    def test_compose_reference_has_healthcheck_and_command_environment(self):
+        content = REFERENCE.read_text(encoding="utf-8")
+        self.assertIn("condition: service_healthy", content)
+        self.assertIn("healthcheck:", content)
+        for name in ("LIQUIBASE_COMMAND_URL", "LIQUIBASE_COMMAND_USERNAME", "LIQUIBASE_COMMAND_PASSWORD", "LIQUIBASE_COMMAND_CHANGELOG_FILE"):
+            self.assertIn(name, content)
+
 
 if __name__ == "__main__":
     unittest.main()

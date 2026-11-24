@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ignored_defaults import safe_patterns_for
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -22,6 +24,11 @@ def replace_feature_ids(path: Path, feature_id: str) -> None:
     content = path.read_text(encoding="utf-8").replace("FEAT-CUSTOMER-API-001", feature_id)
     content = content.replace("TC-CUSTOMER-API-001-", f"TC-{suffix}-")
     path.write_text(content, encoding="utf-8")
+
+
+def ignored_yaml(consumer: Path, stacks: set[str]) -> tuple[str, list[str]]:
+    patterns, skipped = safe_patterns_for(consumer, stacks)
+    return ", ".join(f'"{value}"' for value in patterns), skipped
 
 
 def main() -> int:
@@ -55,12 +62,8 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
-        manifest_path.write_text(
-            manifest_path.read_text(encoding="utf-8").replace(
-                "scope:\n", "scope:\n  ignoredWorkPaths: [\"**/.venv/**\", \"**/__pycache__/**\", \"**/.pytest_cache/**\", \"**/*.egg-info/**\", \"performance/gatling/target/**\"]\n"
-            ),
-            encoding="utf-8",
-        )
+        ignored, skipped = ignored_yaml(consumer, {"python", "gatling"})
+        manifest_path.write_text(manifest_path.read_text(encoding="utf-8").replace("scope:\n", f"scope:\n  ignoredWorkPaths: [{ignored}]\n"), encoding="utf-8")
         if args.contract_dir:
             contract_dir = Path(args.contract_dir)
             if contract_dir.is_absolute() or ".." in contract_dir.parts:
@@ -70,12 +73,15 @@ def main() -> int:
             destination.mkdir(parents=True, exist_ok=True)
             for name in ("openapi.yaml", "test-cases.yaml"):
                 shutil.copy2(output / name, destination / name)
+                (output / name).unlink()
             document = manifest_path.read_text(encoding="utf-8")
             document = document.replace("path: openapi.yaml", f"path: {contract_dir.as_posix()}/openapi.yaml\n  pathBase: consumer")
             document = document.replace("path: test-cases.yaml", f"path: {contract_dir.as_posix()}/test-cases.yaml\n  pathBase: consumer")
             document = document.replace("protectedPaths: [{path: frontend, kind: directory}", f"protectedPaths: [{{path: {contract_dir.as_posix()}, kind: directory}}, {{path: frontend, kind: directory}}")
             manifest_path.write_text(document, encoding="utf-8")
         print(f"Created illustrative backend templates in {output}")
+        if skipped:
+            print(f"NF-IGNORED-WARN-001: omitted defaults matching tracked files: {', '.join(skipped)}", file=sys.stderr)
         return 0
     template = ROOT / "docs" / "m2" / "examples" / "customer-profile"
     for name in ("specification.md", "mockup.html", "unit-tests.yaml", f"{args.stack}.input.yaml"):
@@ -84,8 +90,8 @@ def main() -> int:
     manifest = manifest.replace("FEAT-CUSTOMER-PROFILE-001", args.feature_id)
     repository_root = os.path.relpath(consumer, output)
     manifest = manifest.replace("../../../../labs/angular-customer-profile-consumer", repository_root)
-    ignored = "[\"**/node_modules/**\", \"**/.angular/**\", \"**/dist/**\", \"**/coverage/**\"]"
-    manifest = manifest.replace("scope:\n", f"scope:\n  ignoredWorkPaths: {ignored}\n", 1)
+    ignored, skipped = ignored_yaml(consumer, {"node"})
+    manifest = manifest.replace("scope:\n", f"scope:\n  ignoredWorkPaths: [{ignored}]\n", 1)
     frontend_root = Path(args.frontend_root)
     if frontend_root != Path("."):
         if frontend_root.is_absolute() or ".." in frontend_root.parts:
@@ -94,8 +100,21 @@ def main() -> int:
         prefix = frontend_root.as_posix()
         manifest = manifest.replace("manifestPath: package.json", f"manifestPath: {prefix}/package.json")
         manifest = manifest.replace("lockfilePath: package-lock.json", f"lockfilePath: {prefix}/package-lock.json")
-        for path in ("src/app/features/customer-profile", "src/app/core", "src/app", "README.md"):
-            manifest = manifest.replace(f"path: {path}", f"path: {prefix}/{path}")
+        lines = []
+        in_scope = False
+        for line in manifest.splitlines():
+            stripped = line.strip()
+            if stripped == "scope:":
+                in_scope = True
+            elif in_scope and not line.startswith(" "):
+                in_scope = False
+            if in_scope and "path:" in line and not any(item in stripped for item in ("evidence/", ".github")):
+                before, value = line.split("path:", 1)
+                value = value.strip()
+                if value and not value.startswith(prefix + "/"):
+                    line = f"{before}path: {prefix}/{value}"
+            lines.append(line)
+        manifest = "\n".join(lines) + "\n"
         siblings = [item.name for item in consumer.iterdir() if item.is_dir() and item.name != frontend_root.parts[0] and item.name != ".git"]
         if siblings:
             marker = "protectedPaths:"
@@ -104,6 +123,8 @@ def main() -> int:
     unit = (output / "unit-tests.yaml").read_text(encoding="utf-8").replace("FEAT-CUSTOMER-PROFILE-001", args.feature_id)
     (output / "unit-tests.yaml").write_text(unit, encoding="utf-8")
     print(f"Created illustrative M2 templates in {output}")
+    if skipped:
+        print(f"NF-IGNORED-WARN-001: omitted defaults matching tracked files: {', '.join(skipped)}", file=sys.stderr)
     return 0
 
 

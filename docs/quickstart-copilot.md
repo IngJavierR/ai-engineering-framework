@@ -50,6 +50,7 @@ workspace/
 5. Ejecutar PREPARE con evidencia fuera del consumidor:
 
    ```bash
+   git -C mi-frontend switch -c feat/profile-001
    python3 tools/validate_frontend_workflow.py prepare \
      --manifest features/profile/angular.input.yaml \
      --consumer-repository mi-frontend \
@@ -94,6 +95,8 @@ Git observable es conforme, pero la evidencia de frontend sigue en `NOT_RUN`.
 No certifica autoría, pruebas, build, typecheck ni validación formal completa.
 En un monorepo, `--frontend-root frontend` hace que las rutas del manifiesto se
 resuelvan dentro de ese directorio y protege los directorios hermanos.
+Los patrones `ignoredWorkPaths` quedan anclados en PREPARE; no se pueden ampliar
+después para ocultar cambios de VERIFY.
 
 ## Decisiones autorizadas
 

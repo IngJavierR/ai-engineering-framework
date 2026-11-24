@@ -11,9 +11,15 @@ aprobados por el consumidor:
 
 ```bash
 python3 tools/new_feature.py --stack python-fastapi --feature-id FEAT-ORDERS-001 \
-  --consumer consumer --out features/orders-api
+  --consumer consumer --contract-dir backend/contract --out features/orders-api
+git -C consumer add backend/contract
+git -C consumer commit -m "docs: add approved orders API contract"
 python3 tools/refresh_manifest.py --manifest features/orders-api/backend.input.yaml
 ```
+
+`--contract-dir` es la opción recomendada: deja el contrato aprobado junto al
+código y lo protege durante VERIFY. Debe confirmarse antes de `refresh`, porque
+este comando rechaza árboles consumidores sucios con `RM-GIT-001`.
 
 El manifiesto requiere OpenAPI aprobado, casos de prueba, Liquibase y perfiles
 Gatling. Antes de implementar, ejecuta la prevalidación; permite que Copilot
@@ -38,12 +44,13 @@ workflow con evidencia fuera del repositorio consumidor. `PREPARE` captura un
 snapshot limpio y `VERIFY` exige un ancla externa y la fase `verify` completa:
 
 ```bash
+git -C consumer switch -c feat/orders-001
 python3 tools/validate_backend_workflow.py prepare \
   --manifest features/orders-api/backend.input.yaml \
   --consumer-repository consumer --workspace-root . \
   --evidence-directory evidence
-python3 tools/make_anchor.py --receipt ../evidence/<execution>.receipt.json \
-  --output ../custody/<execution>.anchor.json
+python3 tools/make_anchor.py --receipt evidence/<execution>.receipt.json \
+  --output custody/<execution>.anchor.json
 python3 tools/validate_backend_workflow.py verify \
   --manifest features/orders-api/backend.input.yaml \
   --consumer-repository consumer --workspace-root . \
@@ -56,3 +63,7 @@ Git, como `.venv`, `__pycache__` o `performance/gatling/target`; su contenido
 no se monitoriza. `status: PASS` con `workflowStatus: BLOCKED` significa que el
 alcance es conforme, pero la evidencia de pruebas, build, Liquibase y Gatling
 sigue pendiente.
+
+Los patrones ignorados se fijan en PREPARE y no se pueden cambiar después. El
+scaffold detecta los stacks presentes en el monorepo para incluir caches de
+Node, Python, Java y Gatling cuando correspondan.
