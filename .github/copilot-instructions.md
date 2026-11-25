@@ -47,9 +47,12 @@ future extensibility.
 
 ## API and Database Governance
 
-When working on Java APIs:
+When working on backend APIs in any stack:
 
 - Follow the applicable OpenAPI and DDD standards.
+- Distribute stack-specific standards as skills
+  (`.github/skills/<stack>-development/`), never as
+  language-scoped instruction files.
 - Preserve approved API contracts.
 - Perform compatibility analysis for existing APIs.
 
@@ -62,4 +65,4 @@ For ANY database structural change:
 - Validate structural changes before completion.
 
 These rules apply even when database changes
-are triggered indirectly by Java application work.
+are triggered indirectly by backend application work.

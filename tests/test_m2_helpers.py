@@ -15,12 +15,13 @@ SCAFFOLD = ROOT / "tools" / "new_feature.py"
 
 
 class M2HelperTest(unittest.TestCase):
-    def test_java_apply_globs_do_not_cover_python_paths(self):
+    def test_governance_apply_globs_are_stack_neutral(self):
         for file in (".github/instructions/openapi-ddd.instructions.md", ".github/instructions/liquibase.instructions.md"):
             header = (ROOT / file).read_text(encoding="utf-8").split("---", 2)[1]
             self.assertNotIn("**/api/**", header)
             self.assertNotIn("**/db/**", header)
-            self.assertIn("**/*.java", header)
+            self.assertNotIn("**/*.java", header)
+            self.assertNotIn("**/*.py", header)
 
     def test_make_anchor_matches_receipt_and_rejects_receipt_directory(self):
         with tempfile.TemporaryDirectory() as directory:

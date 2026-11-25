@@ -92,8 +92,12 @@ políticas reutilizables del framework, no componentes de una aplicación.
 
 ### Instrucciones instalables
 
-- `.github/instructions/java.instructions.md`: diseño Java, DDD,
-  manejo de errores de integridad, pruebas y evidencia de validación.
+Las instrucciones son transversales y neutrales al stack: se activan por tipo
+de artefacto (contrato, changelog) y nunca por lenguaje. Los estándares de cada
+lenguaje se distribuyen como skills.
+
+- `.github/instructions/global-governance.instructions.md`: gobierno común,
+  DDD obligatorio en backend y Liquibase obligatorio para cambios estructurales.
 - `.github/instructions/openapi-ddd.instructions.md`: contrato-first,
   compatibilidad, DDD y pruebas HTTP contra OpenAPI.
 - `.github/instructions/liquibase.instructions.md`: cambios
@@ -102,8 +106,22 @@ políticas reutilizables del framework, no componentes de una aplicación.
 
 ### Skills instalables
 
+Backend (DDD + hexagonal obligatorio en todos los stacks):
+
+- `.github/skills/backend-ddd-architecture/SKILL.md`: capas, regla de
+  dependencias, bounded contexts y validación, neutral al stack.
+  - `references/stack-layout-contract.md`: lo que cada stack debe definir y
+    cómo agregar uno nuevo (por ejemplo .NET).
+- `.github/skills/java-spring-development/SKILL.md`: estándares Java/Spring
+  (antes `java.instructions.md`).
+  - `references/ddd-layout.md`
+- `.github/skills/fastapi-development/SKILL.md`
+  - `references/ddd-layout.md`
+  - `references/fastapi-testing.md`
+
+Transversales:
+
 - `.github/skills/openapi-to-ddd/SKILL.md`
-  - `references/ddd-structure.md`
   - `references/contract-compatibility.md`
   - `references/backend-test-cases.md`
 - `.github/skills/liquibase-versioning/SKILL.md`
@@ -123,7 +141,7 @@ convierten un análisis estático en una validación de ejecución.
 
 Las instrucciones, skills y referencias anteriores están presentes en
 el repositorio central y se distribuyen por `tools/install.py` como
-ocho archivos gestionados. El orquestador, `AGENTS.md` y
+diez archivos gestionados en la capacidad base. El orquestador, `AGENTS.md` y
 `.github/copilot-instructions.md` pertenecen al mantenimiento del
 framework y no se copian a los consumidores.
 
@@ -142,12 +160,12 @@ infiere el stack desde los archivos del consumidor.
 
 | Capacidad solicitada | Capacidades resueltas | Archivos gestionados |
 | --- | --- | ---: |
-| Ninguna | `java-base` | 8 |
-| `frontend-ui-design` | `java-base`, `frontend-ui-design` | 12 |
-| `angular-ui-implementation` | `java-base`, `frontend-ui-design`, `angular-ui-implementation` | 16 |
-| `react-ui-implementation` | `java-base`, `frontend-ui-design`, `react-ui-implementation` | 16 |
-| Angular y React | `java-base`, `frontend-ui-design`, Angular, React | 20 |
-| Gatling | `java-base`, `gatling-performance` | 10 |
+| Ninguna | `java-base` | 10 |
+| `frontend-ui-design` | `java-base`, `frontend-ui-design` | 14 |
+| `angular-ui-implementation` | `java-base`, `frontend-ui-design`, `angular-ui-implementation` | 18 |
+| `react-ui-implementation` | `java-base`, `frontend-ui-design`, `react-ui-implementation` | 18 |
+| Angular y React | `java-base`, `frontend-ui-design`, Angular, React | 22 |
+| Gatling | `java-base`, `universal-governance`, `gatling-performance` | 13 |
 | Cypress | `cypress-functional-testing` | 2 |
 | Security validation | `security-validation` | 2 |
 
@@ -208,11 +226,11 @@ un consumidor los solicite de forma explícita y compatible.
 
 | Perfil | Gobierno común | Capacidades de stack | Excluye por defecto |
 | --- | --- | --- | --- |
-| `java-spring` | `universal-governance` | `java-base`, Gatling, seguridad | Angular, React, FastAPI |
+| `java-spring` | `universal-governance` | DDD backend, Java/Spring, contrato OpenAPI, Liquibase, Gatling, seguridad | Angular, React, FastAPI |
 | `angular` | `universal-governance` | diseño/implementación Angular, Cypress, seguridad | Java, React, FastAPI |
 | `react` | `universal-governance` | diseño/implementación React, Cypress, seguridad | Java, Angular, FastAPI |
-| `python-fastapi` | `universal-governance` | FastAPI, contrato OpenAPI, Liquibase, Gatling, seguridad | Java, Angular, React |
-| `backend` | `universal-governance` | contrato OpenAPI, Liquibase, Gatling, seguridad | Java y perfiles de UI |
+| `python-fastapi` | `universal-governance` | DDD backend, FastAPI, contrato OpenAPI, Liquibase, Gatling, seguridad | Java, Angular, React |
+| `backend` | `universal-governance` | DDD backend (capas neutrales), contrato OpenAPI, Liquibase, Gatling, seguridad | Java y perfiles de UI |
 
 ```bash
 python3 tools/install.py --target ../consumer-project --profile react
@@ -226,7 +244,11 @@ capacidades desconocidos. Los perfiles no Java parten de gobierno transversal
 y nunca arrastran `java-base`.
 
 Una migración desde un lock heredado basado en `java-base` requiere
-`--migrate-stack`. El instalador valida hashes existentes, muestra los
+`--migrate-stack`. Desde 0.8.0, cualquier lock que contenga
+`.github/instructions/java.instructions.md` o
+`.github/skills/openapi-to-ddd/references/ddd-structure.md` también requiere
+`--upgrade --migrate-stack`, porque ambos artefactos se retiran y su contenido
+pasa a `java-spring-development` y `backend-ddd-architecture`. El instalador valida hashes existentes, muestra los
 artefactos que retirará en dry-run y nunca elimina capacidades implícitamente.
 
 `angular-ui-implementation` y `react-ui-implementation` dependen de

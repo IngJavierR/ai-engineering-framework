@@ -48,7 +48,12 @@ FRONTEND_CAPABILITIES = frozenset({
     "angular-ui-implementation",
     "react-ui-implementation",
 })
-SKILL_CAPABILITIES = FRONTEND_CAPABILITIES | frozenset({
+BACKEND_SKILL_CAPABILITIES = frozenset({
+    "backend-ddd-architecture",
+    "java-spring-development",
+    "fastapi-development",
+})
+SKILL_CAPABILITIES = FRONTEND_CAPABILITIES | BACKEND_SKILL_CAPABILITIES | frozenset({
     "gatling-performance",
     "cypress-functional-testing",
     "security-validation",
@@ -357,7 +362,9 @@ def source_path(relative):
     return source
 
 
-def source_manifest(files=MANAGED_FILES):
+def source_manifest(files=None):
+    if files is None:
+        _, files = resolve_capabilities(())
     manifest = {}
     for relative in files:
         manifest[relative] = sha256(source_path(relative))
@@ -436,19 +443,12 @@ def validate_lock(lock):
             raise ValueError("Existing framework lock has invalid capabilities")
         if len(capabilities) != len(set(capabilities)):
             raise ValueError("Existing framework lock has duplicate capabilities")
-        try:
-            base = capabilities[0]
-            if base not in {BASE_CAPABILITY, UNIVERSAL_CAPABILITY}:
-                raise ValueError("Existing framework lock has invalid capabilities")
-            resolved, files = resolve_capabilities(
-                capabilities[1:], base_capability=base
-            )
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                "Existing framework lock has invalid capabilities"
-            ) from exc
-        if tuple(capabilities) != resolved or list(lock["files"]) != list(files):
-            raise ValueError("Existing framework lock is internally inconsistent")
+        if capabilities[0] not in {BASE_CAPABILITY, UNIVERSAL_CAPABILITY}:
+            raise ValueError("Existing framework lock has invalid capabilities")
+        # Capability-to-file consistency is checked against the inventory of
+        # the lock's own source commit (validate_historical_source). Checking
+        # it against the current inventory would reject every lock created
+        # before a capability gained or lost artifacts.
 
 
 def is_legacy_lock(lock):

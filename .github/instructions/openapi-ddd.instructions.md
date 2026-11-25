@@ -1,6 +1,6 @@
 
 ---
-applyTo: "**/*.java,**/openapi/**,**/*openapi*.yaml,**/*openapi*.yml,**/*openapi*.json"
+applyTo: "**/openapi/**,**/*openapi*.yaml,**/*openapi*.yml,**/*openapi*.json"
 ---
 
 # OpenAPI and DDD Engineering Standards
@@ -28,9 +28,13 @@ Support both new and existing projects.
 
 ## Domain-Driven Design
 
+DDD with hexagonal boundaries is mandatory for every backend stack. Follow the
+`backend-ddd-architecture` skill and the installed stack skill's
+`references/ddd-layout.md`.
+
 - Identify domain concepts and business rules.
 - Do not assume an endpoint equals an aggregate.
-- Separate domain, application and infrastructure.
+- Separate domain, application, infrastructure and interfaces.
 - Keep domain logic independent of HTTP and persistence frameworks.
 - Use repository abstractions where appropriate.
 - Preserve existing bounded contexts.

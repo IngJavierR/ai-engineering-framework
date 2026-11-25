@@ -4,6 +4,32 @@ Los cambios se registran por versión preparada para publicación o
 publicada. Una entrada sin fecha no implica que exista un tag, release
 ni artefacto publicado.
 
+## [0.8.0-rc.1] - En preparación
+
+### Cambiado (incompatible)
+
+- B1: DDD con límites hexagonales es obligatorio para todo backend. La nueva
+  skill `backend-ddd-architecture` define capas, regla de dependencias, bounded
+  contexts y validación neutral al stack; `api-contract-first`,
+  `fastapi-development` y `java-spring-development` dependen de ella.
+- B2: `.github/instructions/java.instructions.md` se reemplaza por la skill
+  `java-spring-development`. `openapi-to-ddd/references/ddd-structure.md` pasa
+  a `java-spring-development/references/ddd-layout.md`.
+- B3: `fastapi-development` adopta DDD con `references/ddd-layout.md`.
+- B4: `openapi-ddd` y `liquibase` dejan de aplicarse por `**/*.java`; se
+  activan solo por contratos y changelogs. La gobernanza universal incorpora
+  DDD backend y Liquibase obligatorio.
+- B5: los consumidores con locks que contienen los artefactos retirados deben
+  actualizar con `--upgrade --migrate-stack`.
+
+### Corregido
+
+- B6: `validate_lock` ya no rechaza como "internally inconsistent" un lock
+  válido cuando el inventario actual cambió los artefactos de una capacidad; la
+  consistencia se verifica contra el inventario del commit del lock.
+- B7: `source_manifest()` resuelve la capacidad base actual en lugar del
+  manifiesto histórico v0.3.0.
+
 ## [0.7.0-rc.5] - En preparación
 
 ### Corregido

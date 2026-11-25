@@ -13,6 +13,10 @@ SPEC = importlib.util.spec_from_file_location("installer", ROOT / "tools" / "ins
 installer = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(installer)
 
+JAVA_SKILL = ".github/skills/java-spring-development/SKILL.md"
+DDD_SKILL = ".github/skills/backend-ddd-architecture/SKILL.md"
+BACKEND_PROFILES = frozenset({"java-spring", "python-fastapi", "backend"})
+
 
 class ProfileTest(unittest.TestCase):
     def test_stack_profiles_share_governance_without_java_for_non_java(self):
@@ -50,8 +54,11 @@ class ProfileTest(unittest.TestCase):
                 installer.install(target, profile=profile)
                 lock = json.loads((target / installer.LOCK_NAME).read_text())
                 self.assertEqual(lock["capabilities"][0], installer.UNIVERSAL_CAPABILITY)
-                has_java = (target / ".github/instructions/java.instructions.md").exists()
+                has_java = (target / JAVA_SKILL).exists()
                 self.assertEqual(has_java, profile == "java-spring")
+                has_ddd = (target / DDD_SKILL).exists()
+                self.assertEqual(has_ddd, profile in BACKEND_PROFILES)
+                self.assertFalse((target / ".github/instructions/java.instructions.md").exists())
 
     def test_backend_profiles_install_contract_first_capabilities_without_java(self):
         for profile in ("python-fastapi", "backend"):
@@ -59,8 +66,10 @@ class ProfileTest(unittest.TestCase):
                 (profile,), base_capability=installer.UNIVERSAL_CAPABILITY
             )
             self.assertTrue({"api-contract-first", "liquibase-versioning", "gatling-performance", "security-validation"}.issubset(resolved))
-            self.assertNotIn(".github/instructions/java.instructions.md", files)
-            self.assertNotIn(".github/skills/openapi-to-ddd/references/ddd-structure.md", files)
+            self.assertIn("backend-ddd-architecture", resolved)
+            self.assertIn(DDD_SKILL, files)
+            self.assertNotIn(JAVA_SKILL, files)
+            self.assertNotIn(".github/skills/java-spring-development/references/ddd-layout.md", files)
 
     def test_migration_requires_explicit_flag_and_removes_verified_java_files(self):
         fixture_root = ROOT / ".bootstrap-test-tmp"
@@ -77,6 +86,28 @@ class ProfileTest(unittest.TestCase):
             lock = json.loads((target / installer.LOCK_NAME).read_text())
             self.assertEqual(lock["capabilities"][0], installer.UNIVERSAL_CAPABILITY)
             self.assertFalse((target / ".github/instructions/java.instructions.md").exists())
+            self.assertFalse((target / JAVA_SKILL).exists())
+
+    def test_every_backend_profile_resolves_ddd_and_its_stack_layout(self):
+        layouts = {
+            "java-spring": ".github/skills/java-spring-development/references/ddd-layout.md",
+            "python-fastapi": ".github/skills/fastapi-development/references/ddd-layout.md",
+        }
+        for profile in sorted(BACKEND_PROFILES):
+            with self.subTest(profile=profile):
+                resolved, files = installer.resolve_capabilities(
+                    (profile,), base_capability=installer.UNIVERSAL_CAPABILITY
+                )
+                self.assertIn("backend-ddd-architecture", resolved)
+                self.assertIn(DDD_SKILL, files)
+                if profile in layouts:
+                    self.assertIn(layouts[profile], files)
+        for profile in ("angular", "react"):
+            with self.subTest(profile=profile):
+                resolved, _ = installer.resolve_capabilities(
+                    (profile,), base_capability=installer.UNIVERSAL_CAPABILITY
+                )
+                self.assertNotIn("backend-ddd-architecture", resolved)
 
     def _run(self, target, *arguments):
         return subprocess.run([

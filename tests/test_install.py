@@ -21,6 +21,27 @@ sys.modules[SPEC.name] = installer
 SPEC.loader.exec_module(installer)
 
 
+# Files installed by the base capability (java-base) in the current release.
+# installer.MANAGED_FILES is the frozen v0.3.0 manifest used to identify
+# historical locks and must not be used as the current expectation.
+CURRENT_BASE_FILES = [
+    ".github/skills/java-spring-development/SKILL.md",
+    ".github/skills/java-spring-development/references/ddd-layout.md",
+    ".github/skills/backend-ddd-architecture/SKILL.md",
+    ".github/skills/backend-ddd-architecture/references/stack-layout-contract.md",
+    ".github/instructions/openapi-ddd.instructions.md",
+    ".github/instructions/liquibase.instructions.md",
+    ".github/skills/openapi-to-ddd/SKILL.md",
+    ".github/skills/openapi-to-ddd/references/contract-compatibility.md",
+    ".github/skills/liquibase-versioning/SKILL.md",
+    ".github/skills/liquibase-versioning/references/xml-conventions.md",
+]
+REMOVED_JAVA_ARTIFACTS = {
+    ".github/instructions/java.instructions.md",
+    ".github/skills/openapi-to-ddd/references/ddd-structure.md",
+}
+
+
 class InstallerTestCase(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
@@ -49,7 +70,8 @@ class InstallerTestCase(unittest.TestCase):
             return ""
         return installer.git_at(installer.ROOT, *args)
 
-    def install(self, dry_run=False, upgrade=False, capabilities=()):
+    def install(self, dry_run=False, upgrade=False, capabilities=(),
+                migrate_stack=False):
         original_historical_content = installer.historical_file_content
         current_commit = installer.git_at(installer.ROOT, "rev-parse", "HEAD")
 
@@ -71,6 +93,7 @@ class InstallerTestCase(unittest.TestCase):
                 dry_run=dry_run,
                 upgrade=upgrade,
                 capabilities=capabilities,
+                migrate_stack=migrate_stack,
             )
 
     def lock_path(self):
@@ -183,14 +206,14 @@ class InstallerTestCase(unittest.TestCase):
         self.install()
 
         lock = self.read_lock()
-        self.assertEqual(installer.MANAGED_FILES, list(lock["files"]))
+        self.assertEqual(CURRENT_BASE_FILES, list(lock["files"]))
         self.assertEqual(installer.FRAMEWORK_NAME, lock["framework"])
         self.assertEqual(installer.FRAMEWORK_SOURCE, lock["source"])
         self.assertEqual(
             installer.git_at(installer.ROOT, "rev-parse", "HEAD"),
             lock["commit"],
         )
-        for relative in installer.MANAGED_FILES:
+        for relative in CURRENT_BASE_FILES:
             destination = self.destination(relative)
             source = installer.source_path(relative)
             self.assertEqual(source.read_bytes(), destination.read_bytes())
@@ -199,7 +222,7 @@ class InstallerTestCase(unittest.TestCase):
     def test_t02_repeated_install_does_not_rewrite_files_or_lock(self):
         self.install()
         tracked_paths = [
-            self.destination(relative) for relative in installer.MANAGED_FILES
+            self.destination(relative) for relative in CURRENT_BASE_FILES
         ] + [self.lock_path()]
         before = {
             path: (path.read_bytes(), path.stat().st_mtime_ns)
@@ -222,13 +245,13 @@ class InstallerTestCase(unittest.TestCase):
 
     def test_t04_capability_resolver_returns_base_and_frontend_profiles(self):
         cases = {
-            (): (installer.BASE_CAPABILITY, tuple(installer.MANAGED_FILES)),
+            (): (installer.BASE_CAPABILITY, tuple(CURRENT_BASE_FILES)),
             (
                 "frontend-ui-design",
             ): (
                 "frontend-ui-design",
                 (
-                    *installer.MANAGED_FILES,
+                    *CURRENT_BASE_FILES,
                     ".github/skills/frontend-ui-design/SKILL.md",
                     ".github/skills/frontend-ui-design/references/"
                     "input-interpretation.md",
@@ -243,7 +266,7 @@ class InstallerTestCase(unittest.TestCase):
             ): (
                 "angular-ui-implementation",
                 (
-                    *installer.MANAGED_FILES,
+                    *CURRENT_BASE_FILES,
                     ".github/skills/frontend-ui-design/SKILL.md",
                     ".github/skills/frontend-ui-design/references/"
                     "input-interpretation.md",
@@ -265,7 +288,7 @@ class InstallerTestCase(unittest.TestCase):
             ): (
                 "react-ui-implementation",
                 (
-                    *installer.MANAGED_FILES,
+                    *CURRENT_BASE_FILES,
                     ".github/skills/frontend-ui-design/SKILL.md",
                     ".github/skills/frontend-ui-design/references/"
                     "input-interpretation.md",
@@ -304,7 +327,7 @@ class InstallerTestCase(unittest.TestCase):
             ),
             resolved,
         )
-        self.assertEqual(20, len(files))
+        self.assertEqual(22, len(files))
         self.assertEqual(1, files.count(
             ".github/skills/frontend-ui-design/SKILL.md"
         ))
@@ -478,10 +501,10 @@ class InstallerTestCase(unittest.TestCase):
 
     def test_t10_frontend_profiles_install_exact_resolved_manifests(self):
         cases = {
-            ("frontend-ui-design",): 12,
-            ("angular-ui-implementation",): 16,
-            ("react-ui-implementation",): 16,
-            ("angular-ui-implementation", "react-ui-implementation"): 20,
+            ("frontend-ui-design",): 14,
+            ("angular-ui-implementation",): 18,
+            ("react-ui-implementation",): 18,
+            ("angular-ui-implementation", "react-ui-implementation"): 22,
         }
         for capabilities, expected_count in cases.items():
             with self.subTest(capabilities=capabilities):
@@ -533,7 +556,13 @@ class InstallerTestCase(unittest.TestCase):
 
     def test_t13_v030_upgrade_supports_base_and_frontend_addition(self):
         self.create_historical_installation()
-        self.install(upgrade=True, capabilities=("angular-ui-implementation",))
+        with self.assertRaisesRegex(ValueError, "Artifact removal is BLOCKED"):
+            self.install(upgrade=True, capabilities=("angular-ui-implementation",))
+        self.install(
+            upgrade=True,
+            capabilities=("angular-ui-implementation",),
+            migrate_stack=True,
+        )
 
         resolved, files = installer.resolve_capabilities(
             ("angular-ui-implementation",)
@@ -541,15 +570,19 @@ class InstallerTestCase(unittest.TestCase):
         lock = self.read_lock()
         self.assertEqual(list(resolved), lock["capabilities"])
         self.assertEqual(list(files), list(lock["files"]))
-        self.assertEqual(16, len(files))
+        self.assertEqual(18, len(files))
+        for relative in REMOVED_JAVA_ARTIFACTS:
+            self.assertFalse(os.path.lexists(self.destination(relative)))
 
     def test_t14_v030_upgrade_supports_base_profile(self):
         self.create_historical_installation()
-        self.install(upgrade=True)
+        self.install(upgrade=True, migrate_stack=True)
 
         lock = self.read_lock()
         self.assertEqual([installer.BASE_CAPABILITY], lock["capabilities"])
-        self.assertEqual(installer.MANAGED_FILES, list(lock["files"]))
+        self.assertEqual(CURRENT_BASE_FILES, list(lock["files"]))
+        for relative in REMOVED_JAVA_ARTIFACTS:
+            self.assertFalse(os.path.lexists(self.destination(relative)))
 
     def test_t15_capability_change_requires_upgrade_and_cannot_remove(self):
         self.install(capabilities=("angular-ui-implementation",))
@@ -583,8 +616,12 @@ class InstallerTestCase(unittest.TestCase):
         current_lock = self.read_lock()
         current_lock["capabilities"].append("react-ui-implementation")
         self.write_lock(current_lock)
-        with self.assertRaisesRegex(ValueError, "invalid capabilities|inconsistent"):
+        with self.assertRaisesRegex(ValueError, "differs"):
             self.install()
+        with self.assertRaisesRegex(ValueError, "capability inventory"):
+            self.install(
+                upgrade=True, capabilities=("react-ui-implementation",)
+            )
 
     def test_t17_current_lock_historical_integrity_and_capabilities_are_verified(self):
         self.install(capabilities=("angular-ui-implementation",))
@@ -838,7 +875,7 @@ class InstallerTestCase(unittest.TestCase):
 
     def test_t24_locally_modified_managed_file_is_rejected(self):
         self.install()
-        destination = self.destination(installer.MANAGED_FILES[0])
+        destination = self.destination(CURRENT_BASE_FILES[0])
         original_lock = self.lock_path().read_bytes()
         destination.write_text("consumer modification", encoding="utf-8")
 
@@ -858,16 +895,20 @@ class InstallerTestCase(unittest.TestCase):
             self.destination(legacy_relative).read_bytes(),
         )
 
-        self.install(upgrade=True)
+        # The v0.2.0 manifest is java.instructions.md, which is now a skill.
+        with self.assertRaisesRegex(ValueError, "Artifact removal is BLOCKED"):
+            self.install(upgrade=True)
+        self.assertEqual(
+            legacy_content, self.destination(legacy_relative).read_bytes()
+        )
+
+        self.install(upgrade=True, migrate_stack=True)
 
         self.assertEqual("preserve me", consumer_file.read_text(encoding="utf-8"))
-        self.assertEqual(
-            installer.source_path(legacy_relative).read_bytes(),
-            self.destination(legacy_relative).read_bytes(),
-        )
+        self.assertFalse(os.path.lexists(self.destination(legacy_relative)))
         lock = self.read_lock()
-        self.assertEqual(installer.MANAGED_FILES, list(lock["files"]))
-        for relative in installer.MANAGED_FILES:
+        self.assertEqual(CURRENT_BASE_FILES, list(lock["files"]))
+        for relative in CURRENT_BASE_FILES:
             destination = self.destination(relative)
             self.assertTrue(destination.is_file(), relative)
             self.assertEqual(
@@ -892,7 +933,7 @@ class InstallerTestCase(unittest.TestCase):
             self.assertFalse(os.path.lexists(self.destination(relative)))
 
     def test_t27_managed_path_symlinks_and_broken_symlinks_are_rejected(self):
-        relative = installer.MANAGED_FILES[0]
+        relative = ".github/instructions/openapi-ddd.instructions.md"
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
         outside = self.temporary_root / "outside"
@@ -974,7 +1015,7 @@ class InstallerTestCase(unittest.TestCase):
         self.assertFalse(os.path.lexists(self.lock_path()))
 
     def test_t31_incomplete_rollback_preserves_backups_and_cause(self):
-        relative = installer.MANAGED_FILES[0]
+        relative = next(iter(installer.source_manifest()))
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text("legacy file", encoding="utf-8")
@@ -1016,7 +1057,7 @@ class InstallerTestCase(unittest.TestCase):
         self.assertEqual("legacy lock", self.lock_path().read_text(encoding="utf-8"))
 
     def test_t32_cleanup_failure_reports_completed_install_and_keeps_backup(self):
-        relative = installer.MANAGED_FILES[0]
+        relative = next(iter(installer.source_manifest()))
         destination = self.destination(relative)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text("legacy file", encoding="utf-8")

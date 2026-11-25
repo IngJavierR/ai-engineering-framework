@@ -1,6 +1,6 @@
 
 ---
-applyTo: "**/*.java,**/db/changelog/**,**/*changelog*.xml,**/liquibase/**"
+applyTo: "**/db/changelog/**,**/*changelog*.xml,**/liquibase/**"
 ---
 
 # Database Structural Change Governance

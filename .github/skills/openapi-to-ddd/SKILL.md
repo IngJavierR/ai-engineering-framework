@@ -1,8 +1,8 @@
 ---
 name: openapi-to-ddd
 description: >
-  Analyze and implement Java Spring Boot REST APIs
-  from OpenAPI contracts using Domain-Driven Design
+  Analyze and implement backend REST APIs in any
+  stack from OpenAPI contracts using Domain-Driven Design
   and hexagonal architecture. Use for new projects,
   new endpoints, existing API extensions, contract
   compatibility analysis, and contract test planning.
@@ -29,15 +29,16 @@ Do not treat OpenAPI paths as bounded contexts.
 ## Mandatory Instructions
 
 Follow repository and project instructions:
-- Java engineering standards
+- `backend-ddd-architecture` (mandatory for every backend stack)
+- The installed stack skill, for example `java-spring-development` or
+  `fastapi-development`, and its `references/ddd-layout.md`
 - OpenAPI and DDD governance
 - Liquibase structural governance
 - Applicable client policies
 
-Read `references/contract-compatibility.md`. Read
-`references/ddd-structure.md` only for a Java Spring consumer where it is
-installed. For Python FastAPI, use `fastapi-development`; for another stack,
-use its approved architecture or report `BLOCKED` with the concrete question.
+Read `references/contract-compatibility.md`. For a stack without a registered
+layout, apply the neutral layers from `backend-ddd-architecture` or report
+`BLOCKED` with the concrete mapping question.
 
 If structural database changes are required,
 use the liquibase-versioning skill when available.
@@ -55,7 +56,7 @@ Identify:
 - Functional requirements
 - Acceptance criteria and test cases
 - New or existing project
-- Java and Spring Boot versions
+- Backend stack, language and framework versions
 - Existing architecture, when available
 - Approved project and client policies
 
@@ -121,24 +122,24 @@ Do not invent domain behavior from DTO names.
 
 ### 5. Design Architecture
 
-Use the approved project architecture.
-
-For a new Java Spring Boot project, the default reference architecture is DDD
-with hexagonal boundaries. Python FastAPI and other stacks retain their
-approved architecture.
+Apply `backend-ddd-architecture`. DDD with hexagonal boundaries is mandatory
+for new backend projects and new bounded contexts in every stack. Existing
+non-DDD code is not refactored without approval; report the gap.
 
 Separate:
 - Domain
 - Application
 - Infrastructure
-- API interfaces
+- Interfaces (inbound adapters)
+
+Place files according to the stack skill's `references/ddd-layout.md`.
 
 Do not expose persistence entities as API DTOs.
 
 Keep the domain independent from:
-- Spring
-- HTTP
-- JPA
+- Web frameworks and HTTP
+- ORM and persistence frameworks
+- Dependency-injection containers
 - Database-specific implementations
 
 ### 6. Plan Changes

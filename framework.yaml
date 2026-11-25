@@ -1,7 +1,7 @@
 
 framework:
   name: ai-engineering-framework
-  version: 0.7.0-rc.5
+  version: 0.8.0-rc.1
   status: release-candidate
 
   description: >
@@ -30,21 +30,37 @@ framework:
             ".github/instructions/global-governance.instructions.md"
           ]
         },
+        "backend-ddd-architecture": {
+          "dependencies": ["universal-governance"],
+          "artifacts": [
+            ".github/skills/backend-ddd-architecture/SKILL.md",
+            ".github/skills/backend-ddd-architecture/references/stack-layout-contract.md"
+          ]
+        },
+        "java-spring-development": {
+          "dependencies": ["universal-governance", "backend-ddd-architecture"],
+          "artifacts": [
+            ".github/skills/java-spring-development/SKILL.md",
+            ".github/skills/java-spring-development/references/ddd-layout.md"
+          ]
+        },
         "java-base": {
           "dependencies": [],
           "artifacts": [
-            ".github/instructions/java.instructions.md",
+            ".github/skills/java-spring-development/SKILL.md",
+            ".github/skills/java-spring-development/references/ddd-layout.md",
+            ".github/skills/backend-ddd-architecture/SKILL.md",
+            ".github/skills/backend-ddd-architecture/references/stack-layout-contract.md",
             ".github/instructions/openapi-ddd.instructions.md",
             ".github/instructions/liquibase.instructions.md",
             ".github/skills/openapi-to-ddd/SKILL.md",
-            ".github/skills/openapi-to-ddd/references/ddd-structure.md",
             ".github/skills/openapi-to-ddd/references/contract-compatibility.md",
             ".github/skills/liquibase-versioning/SKILL.md",
             ".github/skills/liquibase-versioning/references/xml-conventions.md"
           ]
         },
         "api-contract-first": {
-          "dependencies": ["universal-governance"],
+          "dependencies": ["universal-governance", "backend-ddd-architecture"],
           "artifacts": [
             ".github/instructions/openapi-ddd.instructions.md",
             ".github/skills/openapi-to-ddd/SKILL.md",
@@ -88,14 +104,15 @@ framework:
           ]
         },
         "fastapi-development": {
-          "dependencies": ["universal-governance"],
+          "dependencies": ["universal-governance", "backend-ddd-architecture"],
           "artifacts": [
             ".github/skills/fastapi-development/SKILL.md",
-            ".github/skills/fastapi-development/references/fastapi-testing.md"
+            ".github/skills/fastapi-development/references/fastapi-testing.md",
+            ".github/skills/fastapi-development/references/ddd-layout.md"
           ]
         },
         "java-spring": {
-          "dependencies": ["universal-governance", "java-base", "backend-contract-first"],
+          "dependencies": ["universal-governance", "java-base", "java-spring-development", "backend-contract-first"],
           "artifacts": []
         },
         "angular": {

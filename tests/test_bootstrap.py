@@ -56,7 +56,7 @@ class BootstrapIntegrationTest(unittest.TestCase):
         self.assertIn("Already installed: matching lock and files", second.stdout)
 
     def test_unmanaged_artifacts_require_explicit_replacement(self):
-        artifact = self.target / ".github/instructions/java.instructions.md"
+        artifact = self.target / ".github/skills/java-spring-development/SKILL.md"
         artifact.parent.mkdir(parents=True)
         artifact.write_text("consumer-owned", encoding="utf-8")
         blocked = self.run_bootstrap()

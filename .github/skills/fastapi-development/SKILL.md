@@ -8,14 +8,17 @@ description: Implement and validate Python FastAPI services with typed contracts
 ## Mission
 
 Build or extend FastAPI services using modern typed Python, Pydantic contracts,
-explicit dependency boundaries, and evidence-based validation. This capability
-does not impose Spring, JPA, Java DDD, or Java-specific migration patterns.
+explicit dependency boundaries, and evidence-based validation. The architecture
+follows `backend-ddd-architecture`; this skill maps it to Python. Read
+[the Python DDD layout](./references/ddd-layout.md) before creating, moving, or
+reviewing packages. It does not impose Spring, JPA, or Java-specific patterns.
 
 ## Service design
 
-- Use type annotations and Pydantic request/response models at HTTP boundaries.
-- Keep routers, application services, and data-access adapters separate using
-  interfaces/protocols appropriate to Python.
+- Use type annotations and Pydantic request/response models at HTTP boundaries
+  only; domain types are framework-free.
+- Keep routers, application use cases, and persistence adapters in their DDD
+  layers, with `typing.Protocol` ports between them.
 - Treat the approved OpenAPI contract as the source of truth. `app.openapi()`
   must be compatible with it and real responses must be validated against it.
 - Validate input through Pydantic and map expected domain errors to deliberate
@@ -37,5 +40,7 @@ does not impose Spring, JPA, Java DDD, or Java-specific migration patterns.
   consumer's installed stack.
 - Cover successful requests, validation failures, expected errors, and OpenAPI
   presence. Do not make real external calls in tests.
+- Verify the framework-free domain with `import-linter` when available, as
+  described in the layout reference; otherwise report it as static evidence.
 - Run existing format, type, test, and application commands. Record only
   executed evidence and preserve client-policy scope restrictions.

@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixtures/rc4"
+BASELINE = ROOT / "tests/fixtures/v0.8.0"
 VALIDATOR = ROOT / "tools/validate_backend_contracts.py"
 EXAMPLE = ROOT / "docs/backend/examples/customer-api"
 
@@ -29,12 +30,17 @@ class RegressionRc4Test(unittest.TestCase):
         self.assertIsNone(result, f"RC4 receipt validation error: {result}")
 
     def test_java_spring_install_list_unchanged(self):
-        """java-spring profile must install the same files as in RC4."""
-        expected = sorted((FIXTURES / "install-java-spring-files.txt").read_text(encoding="utf-8").splitlines())
+        """java-spring profile must install the 0.8.0 baseline file list.
+
+        The RC4 baseline (tests/fixtures/rc4) is kept for history; 0.8.0
+        replaced java.instructions.md and ddd-structure.md with the
+        java-spring-development and backend-ddd-architecture skills.
+        """
+        expected = sorted((BASELINE / "install-java-spring-files.txt").read_text(encoding="utf-8").splitlines())
         sys.path.insert(0, str(ROOT / "tools"))
         import install as i  # noqa: E402
-        _, files = i.resolve_capabilities(["java-spring"])
-        self.assertEqual(expected, sorted(files), "java-spring file list changed from RC4 baseline")
+        _, files = i.resolve_capabilities(["java-spring"], base_capability=i.UNIVERSAL_CAPABILITY)
+        self.assertEqual(expected, sorted(files), "java-spring file list changed from the 0.8.0 baseline")
 
     def test_examples_validate(self):
         """Backend and M2 examples must pass preflight validation."""
