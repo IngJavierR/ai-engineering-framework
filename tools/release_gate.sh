@@ -17,7 +17,10 @@ echo "=== Running onboarding quickstart tests ==="
 "$PYTHON" -m pytest -q tests/test_onboarding_quickstarts.py -vv
 
 echo "=== Verifying java-spring profile dry-run ==="
-"$PYTHON" tools/install.py --target "$(mktemp -d)" --profile java-spring --dry-run >/dev/null
+_GATE_TMP=$(mktemp -d)
+git init -q "$_GATE_TMP"
+"$PYTHON" tools/install.py --target "$_GATE_TMP" --profile java-spring --dry-run >/dev/null
+unset _GATE_TMP
 
 echo "=== Verifying CHANGELOG entry matches framework version ==="
 FW_VERSION=$("$PYTHON" -c 'import yaml; print(yaml.safe_load(open("framework.yaml"))["framework"]["version"])')
