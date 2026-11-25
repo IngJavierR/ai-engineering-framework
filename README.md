@@ -62,6 +62,13 @@ En cada nueva terminal repite desde `{base}/`:
 source .venv-fw/bin/activate && FW=ai-engineering-framework
 ```
 
+## 2.1 Crear el proyecto `nuevo-proyecto`
+
+```bash
+mkdir nuevo-proyecto && cd nuevo-proyecto
+git init -b main
+```
+
 ---
 
 ## 3. Instalar el framework en tu proyecto
