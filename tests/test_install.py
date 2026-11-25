@@ -965,7 +965,11 @@ class InstallerTestCase(unittest.TestCase):
             self.assertEqual([], list(outside_directory.iterdir()))
             self.assertFalse(os.path.lexists(self.lock_path()))
 
-    def test_t28_target_with_symlink_ancestor_is_rejected(self):
+    def test_t28_target_with_symlink_ancestor_resolves_to_real_path(self):
+        # validate_target normalises via realpath before the ancestor check,
+        # so a user symlink in the path is transparently resolved rather than
+        # rejected.  This also handles OS-level symlinks such as /var ->
+        # /private/var on macOS where tempfile.mkdtemp() returns /var/... paths.
         real_parent = self.temporary_root / "real-parent"
         real_parent.mkdir()
         linked_parent = self.temporary_root / "linked-parent"
@@ -974,8 +978,8 @@ class InstallerTestCase(unittest.TestCase):
         linked_target.mkdir()
         self.run_git("init", linked_target)
 
-        with self.assertRaisesRegex(ValueError, "must not contain a symlink"):
-            installer.validate_target(linked_target)
+        resolved = installer.validate_target(linked_target)
+        self.assertEqual(resolved, linked_target.resolve())
 
     def test_t29_file_replace_failure_rolls_back_created_files(self):
         real_replace = installer.os.replace

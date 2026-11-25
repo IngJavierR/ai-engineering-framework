@@ -1,423 +1,357 @@
 
 # AI Engineering Framework
 
-Framework centralizado y versionado para estandarizar
-el desarrollo de software asistido por GitHub Copilot.
+Framework para estandarizar el desarrollo asistido por GitHub Copilot.
+Instálalo en tu proyecto y obtén skills, instrucciones y un flujo
+PREPARE/VERIFY verificable para backend y frontend.
 
-## Objetivo
+**Versión actual:** `0.8.0-rc.1`
 
-Establecer prácticas de ingeniería reutilizables,
-verificables y adaptables a distintos proyectos
-y clientes.
+---
 
-## Estado
-
-Versión candidata de trabajo: `0.6.0-rc.1`.
-Estado: Release candidate local. No existe todavía un tag, GitHub Release ni
-artefacto publicado para esta versión.
-
-La release `v0.3.0` permanece inmutable.
-
-## Roadmap y estado de implementación
-
-Estado reconciliado el 2026-11-19 contra el commit local `bfefae6` del
-framework y el laboratorio Angular `63d72e5`. Los estados se basan en la
-evidencia disponible en estos repositorios; la presencia de artefactos o
-pruebas unitarias aisladas no equivale por sí sola a cumplir un criterio de
-salida.
-
-| Milestone | Estado | Evidencia y límite actual |
-| --- | --- | --- |
-| MVP — Fundación y gobierno de Java | Implementado, sin criterio de salida demostrado | Existen instrucciones Java, orquestador, instalador y regresión del framework. No hay en el workspace evidencia ejecutable de un proyecto Spring Boot que rechace conjuntamente una violación arquitectónica y un cambio fuera de alcance. |
-| M1 — OpenAPI + DDD + Liquibase | Implementado, con evidencia histórica no reproducida en esta reconciliación | Las skills e instrucciones existen. Este README registra 40 pruebas históricas, incluyendo contrato HTTP y PostgreSQL incremental, pero el laboratorio Java y sus resultados no están presentes para reproducirlos aquí. Por ello no se declara el criterio de salida como demostrado en el estado actual. |
-| M2 — Requerimientos + HTML + pruebas | Implementado en modalidad Development / Lab | `customer-profile` se implementó y probó en el laboratorio Angular: unitarias, typecheck, build y Playwright pasaron. La certificación formal permanece `NOT EXECUTED`; no se fabricaron PREPARE ni VERIFY. |
-| M3 — Performance + Arquitectura 4+1 | Implementado en modalidad Development / Lab | El laboratorio Java ejecutó Gatling contra Spring Boot y PostgreSQL locales con perfiles smoke, baseline y stress; generó informes HTML y documentó vistas 4+1 Mermaid y ADR. No constituye certificación de capacidad productiva. |
-| M3.1 — Functional Testing | Implementado en modalidad Development / Lab | El laboratorio Angular ejecutó 4 escenarios Cypress headless contra `customer-profile`, con captura de artefactos locales ignorados por Git. La suite conserva Playwright como capacidad independiente. |
-| M3.3 — Security Validation | Implementado en modalidad Development / Lab | Se completaron reportes de seguridad Markdown y JSON para los laboratorios Angular y Java, sustentados por evidencia local y preparados para validación manual. No constituyen certificación formal. |
-| M4 — Distribución corporativa y políticas de cliente | Implementado en modalidad local demostrable | Java y Angular consumen la misma línea de framework con locks y políticas aisladas; bootstrap, idempotencia, conflictos y propuesta local de actualización fueron probados sin crear PR remoto. |
-| M5 — Evolución multilenguaje | Implementado en modalidad de piloto | Gobierno transversal, perfiles aislados y fixtures React/FastAPI demostrados; consultar la evaluación de preparación para límites de distribución. |
-
-La autorización SSH firmada es una capacidad experimental adicional de M2. No
-se considera por sí misma un criterio de salida del milestone; sin embargo, el
-manifiesto disponible tampoco satisface los controles M2 previos existentes:
-es ilustrativo, carece de PREPARE y de un ancla externa independiente, y la
-decisión local limita explícitamente la autorización a documentación y
-evidencia. Consultar [el reporte de cierre de la reconciliación](docs/m2/roadmap-reconciliation-2026-11-19.md).
-
-## Preparación corporativa
-
-La evaluación integral actual concluye **READY_WITH_LIMITATIONS**: el framework
-es apto para un piloto interno controlado con fuente local fijada, locks y
-revisión humana, pero no para distribución corporativa general ni release
-publicada. Consultar [release-readiness.md](docs/release-readiness.md) para la
-matriz de madurez, riesgos bloqueantes, condiciones operativas y decisión de
-dirección pendiente.
-
-Para el flujo asistido de frontend desde Copilot, consultar
-[quickstart-copilot.md](docs/quickstart-copilot.md).
-
-## Componentes
-
-- AGENTS.md: contrato general de los agentes.
-- .github/copilot-instructions.md:
-  instrucciones para GitHub Copilot.
-- framework.yaml: metadatos y versión.
-
-## Agentes disponibles
-
-### Engineering Orchestrator
-
-Ubicación:
-`.github/agents/orchestrator.agent.md`
-
-Responsabilidad:
-- Analizar solicitudes de ingeniería.
-- Identificar el contexto del repositorio.
-- Evaluar impacto y riesgos.
-- Proponer planes de implementación.
-- Identificar validaciones necesarias.
-
-Restricciones:
-- No modifica archivos.
-- No implementa código.
-- No ejecuta pruebas.
-- No coordina todavía otros agentes.
-
-Estado: Disponible para validación en el MVP.
-
-## Capacidades disponibles
-
-El repositorio contiene capacidades transversales y específicas por stack. Son
-políticas reutilizables del framework, no componentes de una aplicación.
-
-### Instrucciones instalables
-
-Las instrucciones son transversales y neutrales al stack: se activan por tipo
-de artefacto (contrato, changelog) y nunca por lenguaje. Los estándares de cada
-lenguaje se distribuyen como skills.
-
-- `.github/instructions/global-governance.instructions.md`: gobierno común,
-  DDD obligatorio en backend y Liquibase obligatorio para cambios estructurales.
-- `.github/instructions/openapi-ddd.instructions.md`: contrato-first,
-  compatibilidad, DDD y pruebas HTTP contra OpenAPI.
-- `.github/instructions/liquibase.instructions.md`: cambios
-  estructurales mediante Liquibase XML, inmutabilidad y validación de
-  migraciones.
-
-### Skills instalables
-
-Backend (DDD + hexagonal obligatorio en todos los stacks):
-
-- `.github/skills/backend-ddd-architecture/SKILL.md`: capas, regla de
-  dependencias, bounded contexts y validación, neutral al stack.
-  - `references/stack-layout-contract.md`: lo que cada stack debe definir y
-    cómo agregar uno nuevo (por ejemplo .NET).
-- `.github/skills/java-spring-development/SKILL.md`: estándares Java/Spring
-  (antes `java.instructions.md`).
-  - `references/ddd-layout.md`
-- `.github/skills/fastapi-development/SKILL.md`
-  - `references/ddd-layout.md`
-  - `references/fastapi-testing.md`
-
-Transversales:
-
-- `.github/skills/openapi-to-ddd/SKILL.md`
-  - `references/contract-compatibility.md`
-  - `references/backend-test-cases.md`
-- `.github/skills/liquibase-versioning/SKILL.md`
-  - `references/xml-conventions.md`
-- `.github/skills/gatling-performance/SKILL.md`
-  - `references/controlled-profiles.md`
-- `.github/skills/cypress-functional-testing/SKILL.md`
-  - `references/functional-scenario-guidance.md`
-- `.github/skills/security-validation/SKILL.md`
-  - `references/reporting-guidance.md`
-
-Las skills guían análisis, planificación y criterios de aceptación.
-No sustituyen requisitos funcionales del proyecto consumidor ni
-convierten un análisis estático en una validación de ejecución.
-
-### Capacidades presentes y capacidades distribuidas
-
-Las instrucciones, skills y referencias anteriores están presentes en
-el repositorio central y se distribuyen por `tools/install.py` como
-diez archivos gestionados en la capacidad base. El orquestador, `AGENTS.md` y
-`.github/copilot-instructions.md` pertenecen al mantenimiento del
-framework y no se copian a los consumidores.
-
-La distribución incorpora locks, bootstrap y políticas aisladas del consumidor,
-pero no quality gates generales remotos. `automatedQualityGates` permanece en
-`false`.
-
-## Distribución
-
-El instalador requiere un repositorio Git destino y una fuente del framework
-sin cambios pendientes. Los locks heredados conservan `java-base`; los perfiles
-nuevos usan `universal-governance` y seleccionan explícitamente el stack. No se
-infiere el stack desde los archivos del consumidor.
-
-### Capacidades y dependencias
-
-| Capacidad solicitada | Capacidades resueltas | Archivos gestionados |
-| --- | --- | ---: |
-| Ninguna | `java-base` | 10 |
-| `frontend-ui-design` | `java-base`, `frontend-ui-design` | 14 |
-| `angular-ui-implementation` | `java-base`, `frontend-ui-design`, `angular-ui-implementation` | 18 |
-| `react-ui-implementation` | `java-base`, `frontend-ui-design`, `react-ui-implementation` | 18 |
-| Angular y React | `java-base`, `frontend-ui-design`, Angular, React | 22 |
-| Gatling | `java-base`, `universal-governance`, `gatling-performance` | 13 |
-| Cypress | `cypress-functional-testing` | 2 |
-| Security validation | `security-validation` | 2 |
-
-La capacidad de revisión se instala sin herramientas ni escáneres implícitos:
+## 0. Prerrequisitos
 
 ```bash
-python3 tools/install.py --target ../consumer-project \
-  --capability security-validation
+python3 --version          # 3.11 o superior
+node --version && npm --version
+java -version              # JDK 17 o superior (solo si usas Gatling o Java)
+mvn -version               # Maven (solo si usas Gatling o Java)
+docker compose version     # Docker Desktop encendido (solo si usas PostgreSQL local)
+git --version
+git config --global init.defaultBranch main   # las pruebas del framework asumen "main"
 ```
 
-Cada consumidor selecciona y ejecuta sus analizadores locales compatibles; la
-skill define cómo registrar alcance, evidencia, hallazgos y limitaciones sin
-transferir código a servicios externos.
+En VS Code: **GitHub Copilot Chat en modo Agent**.
 
-## Bootstrap y políticas de cliente
+---
 
-`tools/bootstrap.py` es la interfaz de consumo corporativo. Delega la copia,
-lock, integridad e idempotencia exclusivamente a `tools/install.py`; no crea un
-segundo instalador. Requiere una versión disponible en la fuente local, una
-política JSON autorizada y un repositorio Git destino.
+## 1. Estructura de trabajo recomendada
+
+```text
+{base}/
+├── ai-engineering-framework/   # este repositorio (clonado aquí)
+├── .venv-fw/                   # Python para los validadores del framework
+├── mi-proyecto/                # tu proyecto (repo Git)
+├── features/                   # insumos de negocio por feature (fuera del proyecto)
+├── evidence/                   # snapshots y receipts de PREPARE
+└── custody/                    # anchor externo
+```
+
+---
+
+## 2. Clonar el framework y preparar el entorno
 
 ```bash
-python3 tools/bootstrap.py \
-  --target ../consumer-project \
-  --version 0.5.0-rc.1 \
+cd {base}
+git clone https://github.com/IngJavierR/ai-engineering-framework.git
+FW=ai-engineering-framework
+
+# En macOS Homebrew, Python no permite pip global (PEP 668): usa un venv propio
+python3 -m venv .venv-fw
+source .venv-fw/bin/activate
+pip install --upgrade pip
+python3 -m pip install -r $FW/tools/requirements-frontend-contracts.txt pytest
+
+# Opcional: verifica que el framework está sano en tu máquina
+(cd $FW && bash tools/release_gate.sh)   # esperado: RELEASE_GATE_PASS
+```
+
+En cada nueva terminal repite desde `{base}/`:
+
+```bash
+source .venv-fw/bin/activate && FW=ai-engineering-framework
+```
+
+---
+
+## 3. Instalar el framework en tu proyecto
+
+El proyecto destino debe ser un repositorio Git con working tree limpio.
+
+Elige el perfil según tu stack. Puedes combinar perfiles con `--profile` repetido:
+
+| Perfil | Stack | Skills que instala |
+| --- | --- | --- |
+| `python-fastapi` | FastAPI + PostgreSQL | DDD backend, OpenAPI, Liquibase, Gatling, seguridad |
+| `angular` | Angular | Diseño/implementación Angular, Cypress, seguridad |
+| `react` | React | Diseño/implementación React, Cypress, seguridad |
+| `java-spring` | Java + Spring Boot | DDD backend, Java/Spring, OpenAPI, Liquibase, Gatling, seguridad |
+| `backend` | Cualquier backend REST | DDD backend (neutral), OpenAPI, Liquibase, Gatling, seguridad |
+
+```bash
+# Proyecto Angular + FastAPI (monorepo)
+python3 $FW/tools/install.py --target mi-proyecto \
+  --profile angular --profile python-fastapi --dry-run   # previsualiza sin escribir
+
+python3 $FW/tools/install.py --target mi-proyecto \
+  --profile angular --profile python-fastapi
+
+git -C mi-proyecto add -A
+git -C mi-proyecto commit -m "chore: instalar ai-engineering-framework"
+```
+
+Confirma la instalación: aparece `.ai-framework.lock.json` y la carpeta `.github/`
+con las skills e instrucciones del framework en tu proyecto.
+
+---
+
+## 4. Feature backend (contrato primero)
+
+Ejecuta todo desde `{base}/`, con `.venv-fw` activado.
+
+### 4.1 Crear los insumos
+
+```bash
+python3 $FW/tools/new_feature.py \
+  --stack python-fastapi \
+  --feature-id FEAT-ORDERS-001 \
+  --consumer mi-proyecto \
+  --contract-dir backend/contract \
+  --out features/orders-api
+```
+
+### 4.2 Editar los insumos de negocio
+
+Edita a mano solo estas dos cosas:
+
+- `mi-proyecto/backend/contract/openapi.yaml`: contrato aprobado con un
+  `operationId` único por operación.
+- `mi-proyecto/backend/contract/test-cases.yaml`: al menos un caso 2xx por
+  operación; si hay body o parámetros obligatorios, también un caso negativo 4xx.
+
+### 4.3 Versionar, refrescar y prevalidar
+
+```bash
+git -C mi-proyecto add backend/contract
+git -C mi-proyecto commit -m "docs: add approved API contract"
+
+python3 $FW/tools/refresh_manifest.py \
+  --manifest features/orders-api/backend.input.yaml
+
+python3 $FW/tools/validate_backend_contracts.py \
+  --input features/orders-api/backend.input.yaml --phase preflight   # esperado: VALID
+```
+
+### 4.4 PREPARE
+
+```bash
+git -C mi-proyecto switch -c feat/orders-001
+
+python3 $FW/tools/validate_backend_workflow.py prepare \
+  --manifest features/orders-api/backend.input.yaml \
+  --consumer-repository mi-proyecto --workspace-root . \
+  --evidence-directory evidence                                       # esperado: PASS WF-PREPARE-000
+
+RECEIPT=$(ls -t evidence/*.receipt.json | head -1)
+python3 $FW/tools/make_anchor.py --receipt "$RECEIPT" \
+  --output custody/anchor.json
+```
+
+### 4.5 Implementar con Copilot (modo Agent)
+
+Abre `mi-proyecto` en VS Code y envía este prompt:
+
+> Usa las skills `openapi-to-ddd`, `fastapi-development`, `liquibase-versioning` y
+> `gatling-performance` con el manifiesto `../features/orders-api/backend.input.yaml`.
+> Implementa en `backend/` el contrato aprobado de `backend/contract/openapi.yaml` sin
+> modificarlo.
+>
+> - Crea el esquema PostgreSQL con changesets Liquibase XML incluidos desde
+>   `backend/db/changelog/db.changelog-master.xml`, con rollback. No uses `create_all`
+>   ni Alembic.
+> - Implementa con pytest cada `TC-*` de `backend/contract/test-cases.yaml` más
+>   conformidad con schemathesis contra el contrato.
+> - Crea `performance/gatling/` (Maven + Java DSL) con perfiles smoke, baseline y
+>   stress; la URL desde `TARGET_BASE_URL`, solo destinos loopback.
+>
+> Trabaja solo dentro de `scope.allowedPaths` y reporta la evidencia como
+> GENERATED/COMPILED/TESTED/VALIDATED/NOT_RUN.
+
+### 4.6 Verificar localmente y correr VERIFY
+
+```bash
+# Aplica changesets Liquibase
+docker compose --profile tools build liquibase
+docker compose --profile tools run --rm liquibase validate
+docker compose --profile tools run --rm liquibase update
+
+# Pruebas
+(cd mi-proyecto/backend && .venv/bin/pytest -q)
+
+# Gatling
+(cd mi-proyecto/backend && .venv/bin/uvicorn app.main:app \
+  --host 127.0.0.1 --port 8000) &
+(cd mi-proyecto/performance/gatling && \
+  TARGET_BASE_URL=http://127.0.0.1:8000 mvn gatling:test)
+kill %1
+
+git -C mi-proyecto add -A
+git -C mi-proyecto commit -m "feat: FEAT-ORDERS-001"
+
+python3 $FW/tools/validate_backend_contracts.py \
+  --input features/orders-api/backend.input.yaml --phase verify       # esperado: VALID
+
+python3 $FW/tools/validate_backend_workflow.py verify \
+  --manifest features/orders-api/backend.input.yaml \
+  --consumer-repository mi-proyecto --workspace-root . \
+  --evidence-directory evidence --receipt "$RECEIPT" \
+  --external-anchor custody/anchor.json                               # esperado: PASS WF-VERIFY-000
+
+git -C mi-proyecto switch main
+git -C mi-proyecto merge --ff-only feat/orders-001
+```
+
+---
+
+## 5. Feature frontend (Angular/React)
+
+Empieza solo después de hacer merge de la feature backend. El anchor nuevo
+reemplaza al anterior en `custody/`.
+
+### 5.1 Crear los insumos
+
+```bash
+python3 $FW/tools/new_feature.py \
+  --feature-id FEAT-PROFILE-001 \
+  --stack angular \
+  --consumer mi-proyecto \
+  --frontend-root frontend \
+  --out features/profile
+```
+
+### 5.2 Editar los insumos de negocio
+
+En `features/profile/`:
+
+- `specification.md`: descripción funcional de la feature.
+- `mockup.html`: HTML autocontenido del diseño.
+- `unit-tests.yaml`: casos unitarios por componente.
+- `angular.input.yaml`: ajusta `templateStatus: ready-for-execution` y pega
+  los fragmentos `requirements`, `conceptualComponents`, `mockups` y `unitTests.caseIds`
+  generados por las skills M2.
+
+No toques `scope`. El scaffold ya protege `package*.json`, `backend`,
+`performance` y `db`, y declara los cachés.
+
+### 5.3 Refrescar, validar y PREPARE
+
+```bash
+python3 $FW/tools/refresh_manifest.py \
+  --manifest features/profile/angular.input.yaml
+
+python3 $FW/tools/validate_frontend_contracts.py \
+  --input features/profile/angular.input.yaml \
+  --unit-tests features/profile/unit-tests.yaml                       # esperado: VALID
+
+python3 $FW/tools/validate_frontend_semantics.py \
+  --input features/profile/angular.input.yaml \
+  --workspace-root "$PWD"                                             # esperado: sin errores
+
+git -C mi-proyecto switch -c feat/profile-001
+
+python3 $FW/tools/validate_frontend_workflow.py prepare \
+  --manifest features/profile/angular.input.yaml \
+  --consumer-repository mi-proyecto --workspace-root . \
+  --evidence-directory evidence                                       # esperado: PASS WF-PREPARE-000
+
+RECEIPT=$(ls -t evidence/*.receipt.json | head -1)
+python3 $FW/tools/make_anchor.py --receipt "$RECEIPT" \
+  --output custody/anchor.json
+```
+
+### 5.4 Planear e implementar con Copilot (modo Agent)
+
+**Planear primero:**
+
+> Usa la skill `frontend-ui-design` con `../features/profile/angular.input.yaml`,
+> el receipt `../evidence/<id>.receipt.json` y el anchor `../custody/anchor.json`.
+> Entrega la matriz REQ→CMP→UT y el estado final.
+
+**Implementar solo si el plan resultó `READY_FOR_IMPLEMENTATION`:**
+
+> Usa la skill `angular-ui-implementation` para implementar el plan aprobado
+> dentro de `allowedPaths`, con pruebas unitarias. Ejecuta solo comandos existentes
+> del proyecto y registra la evidencia en `frontend-ui-output/v1`.
+
+### 5.5 Probar, confirmar y correr VERIFY
+
+```bash
+(cd mi-proyecto/frontend && npx ng test --watch=false)
+
+git -C mi-proyecto add -A
+git -C mi-proyecto commit -m "feat: FEAT-PROFILE-001"
+
+python3 $FW/tools/validate_frontend_workflow.py verify \
+  --manifest features/profile/angular.input.yaml \
+  --consumer-repository mi-proyecto --workspace-root . \
+  --evidence-directory evidence --receipt "$RECEIPT" \
+  --external-anchor custody/anchor.json                               # esperado: PASS WF-VERIFY-000
+
+git -C mi-proyecto switch main
+git -C mi-proyecto merge --ff-only feat/profile-001
+```
+
+---
+
+## 6. Interpretación de resultados
+
+| Resultado | Significado |
+| --- | --- |
+| `PASS WF-VERIFY-000` con `workflowStatus: BLOCKED` | El alcance es conforme. La evidencia de pruebas, build, Liquibase y Gatling la certificas tú con los comandos de los pasos 4.6 / 5.5 |
+| `FAIL SCOPE-008/009` | Copilot tocó algo fuera del alcance declarado. Revierte o ajusta el alcance en una feature nueva |
+| `BLOCKED BE-HASH-001` | El contrato aprobado fue modificado después de PREPARE |
+| `BLOCKED GIT-003` | Se cambió de rama después de PREPARE. El mensaje indica la rama esperada y la actual |
+| `BLOCKED GIT-005` | Apareció un archivo ignorado no declarado (por ejemplo un archivo de secretos nuevo). El mensaje indica cuál |
+| `FAIL RM-GIT-001` | El working tree del consumidor tiene cambios pendientes. Haz commit antes de `refresh_manifest` |
+
+---
+
+## 7. Upgrade y reinstalación
+
+Si ya tienes el framework instalado y quieres añadir o actualizar capacidades:
+
+```bash
+# Añadir React a un proyecto que ya tiene Angular
+python3 $FW/tools/install.py --target mi-proyecto --profile react --upgrade --dry-run
+python3 $FW/tools/install.py --target mi-proyecto --profile react --upgrade
+
+# Migrar desde un lock heredado (java-base a stack explícito)
+python3 $FW/tools/install.py --target mi-proyecto \
+  --profile python-fastapi --upgrade --migrate-stack
+```
+
+Los upgrades son aditivos; nunca eliminan capacidades implícitamente.
+
+---
+
+## 8. Bootstrap corporativo (proyectos múltiples)
+
+Para aplicar el framework a varios proyectos con una política centralizada:
+
+```bash
+python3 $FW/tools/bootstrap.py \
+  --target ../mi-proyecto \
+  --version 0.8.0-rc.1 \
   --client-policy docs/m4/examples/client-a-java-policy.json \
   --dry-run
 ```
 
-Una primera incorporación que encuentre artefactos del framework sin lock se
-detiene. `--replace-framework-artifacts` es una decisión explícita de adopción;
-no reemplaza archivos locales por defecto. Las instalaciones posteriores usan
-el lock existente y solicitan la actualización controlada mediante el
-instalador. Cada consumidor recibe su política en
-`.ai-framework/policies/<client-id>.json` y estado en
-`.ai-framework/bootstrap.json`.
+Consulta [docs/quickstart-backend.md](docs/quickstart-backend.md) y
+[docs/quickstart-copilot.md](docs/quickstart-copilot.md) para flujos detallados.
 
-### Precedencia de políticas
+---
 
-1. Los controles obligatorios globales del framework siempre prevalecen.
-2. La política de cliente puede habilitar capacidades, añadir reglas y declarar
-   excepciones explícitas dentro de su propio consumidor.
-3. Una política que solicite deshabilitar controles obligatorios se rechaza.
-4. Las políticas no se comparten: cada consumidor mantiene su archivo y lock,
-   por lo que una actualización no puede modificar la política de otro.
+## Estado y limitaciones
 
-`--proposal-dir` genera `proposal.json` y `PR_UPDATE.md` para revisión humana
-local. El workflow [propose-framework-update.yml](.github/workflows/propose-framework-update.yml)
-prepara esta validación para GitHub Actions; no abre ni fusiona Pull Requests
-remotos sin una operación autorizada posterior.
+Estado actual: **READY_WITH_LIMITATIONS** — apto para piloto interno controlado con
+fuente local fijada, locks y revisión humana. Consulta
+[docs/release-readiness.md](docs/release-readiness.md) para la matriz completa de madurez.
 
-## Perfiles multilenguaje
+Limitaciones conocidas:
 
-El instalador conserva `java-base` para locks históricos, pero los perfiles
-nuevos inician en `universal-governance`. Por ello Angular, React y FastAPI no
-reciben instrucciones Java, OpenAPI Java, Liquibase Java ni Gatling salvo que
-un consumidor los solicite de forma explícita y compatible.
+- `release_gate.sh` requiere `ssh-keygen` (disponible en macOS, puede fallar en entornos CI
+  reducidos).
+- No existe atomicidad global de instalación ante interrupciones abruptas del sistema de archivos.
+- Quality gates automatizados remotos no están implementados (`automatedQualityGates: false`).
 
-| Perfil | Gobierno común | Capacidades de stack | Excluye por defecto |
-| --- | --- | --- | --- |
-| `java-spring` | `universal-governance` | DDD backend, Java/Spring, contrato OpenAPI, Liquibase, Gatling, seguridad | Angular, React, FastAPI |
-| `angular` | `universal-governance` | diseño/implementación Angular, Cypress, seguridad | Java, React, FastAPI |
-| `react` | `universal-governance` | diseño/implementación React, Cypress, seguridad | Java, Angular, FastAPI |
-| `python-fastapi` | `universal-governance` | DDD backend, FastAPI, contrato OpenAPI, Liquibase, Gatling, seguridad | Java, Angular, React |
-| `backend` | `universal-governance` | DDD backend (capas neutrales), contrato OpenAPI, Liquibase, Gatling, seguridad | Java y perfiles de UI |
-
-```bash
-python3 tools/install.py --target ../consumer-project --profile react
-python3 tools/install.py --target ../consumer-project --profile python-fastapi
-python3 tools/install.py --target ../monorepo --profile angular --profile python-fastapi --dry-run
-```
-
-`--profile` puede repetirse y puede combinarse con `--capability`; el
-instalador resuelve la unión, deduplica artefactos y falla ante perfiles o
-capacidades desconocidos. Los perfiles no Java parten de gobierno transversal
-y nunca arrastran `java-base`.
-
-Una migración desde un lock heredado basado en `java-base` requiere
-`--migrate-stack`. Desde 0.8.0, cualquier lock que contenga
-`.github/instructions/java.instructions.md` o
-`.github/skills/openapi-to-ddd/references/ddd-structure.md` también requiere
-`--upgrade --migrate-stack`, porque ambos artefactos se retiran y su contenido
-pasa a `java-spring-development` y `backend-ddd-architecture`. El instalador valida hashes existentes, muestra los
-artefactos que retirará en dry-run y nunca elimina capacidades implícitamente.
-
-`angular-ui-implementation` y `react-ui-implementation` dependen de
-`frontend-ui-design`; al seleccionar ambas, la skill de diseño compartida
-se deduplica. Cada skill y cada referencia se copia por archivo declarado,
-sin copia recursiva de directorios.
-
-### Instalación limpia y dry-run
-
-```bash
-# Java base por defecto
-python3 tools/install.py --target ../consumer-project
-
-# Solo planificación frontend compartida
-python3 tools/install.py \
-  --target ../consumer-project \
-  --capability frontend-ui-design
-
-# Angular incluye frontend-ui-design
-python3 tools/install.py \
-  --target ../consumer-project \
-  --capability angular-ui-implementation
-
-# React incluye frontend-ui-design
-python3 tools/install.py \
-  --target ../consumer-project \
-  --capability react-ui-implementation
-
-# Angular y React comparten una única instalación de diseño
-python3 tools/install.py \
-  --target ../consumer-project \
-  --capability angular-ui-implementation \
-  --capability react-ui-implementation
-
-# La misma resolución, sin escribir archivos
-python3 tools/install.py \
-  --target ../consumer-project \
-  --capability angular-ui-implementation \
-  --dry-run
-```
-
-El `dry-run` resuelve capacidades y valida las precondiciones del mismo
-modo que la instalación, pero no crea archivos, lock, staging ni respaldos.
-Una instalación limpia rechaza cualquier archivo preexistente en una ruta
-gestionada.
-
-### Lock, reinstalación y upgrade
-
-La versión candidata `0.5.0-rc.1` registra `.ai-framework.lock.json` con el
-schema `capability-lock/v1`, identidad del framework, versión, URL de fuente,
-commit, lista determinista de capacidades resueltas y hashes SHA-256 por
-artefacto.
-
-Una reinstalación con el mismo commit, versión, capacidades y hashes valida
-la instalación sin reescribir archivos ni lock. Un cambio de capacidades
-requiere `--upgrade`:
-
-```bash
-python3 tools/install.py \
-  --target ../consumer-project \
-  --capability angular-ui-implementation \
-  --capability react-ui-implementation \
-  --upgrade \
-  --dry-run
-
-python3 tools/install.py \
-  --target ../consumer-project \
-  --capability angular-ui-implementation \
-  --capability react-ui-implementation \
-  --upgrade
-```
-
-Los upgrades son aditivos: no se permiten eliminaciones implícitas de
-capacidades ni artefactos gestionados. El instalador mantiene compatibilidad
-verificable con locks históricos `v0.2.0` y `v0.3.0`. Antes de un upgrade
-verifica el commit registrado, la identidad y versión de su `framework.yaml`,
-el manifest, las capacidades cuando aplica y los hashes históricos y locales.
-Si el commit histórico no está disponible, el lock es incoherente, un archivo
-fue modificado localmente o existe un nuevo archivo no gestionado en conflicto,
-se detiene sin escribir y debe hacerse una actualización manual.
-
-### Conflictos, seguridad y recuperación
-
-El instalador rechaza modificaciones locales en archivos gestionados, archivos
-no gestionados en rutas nuevas, symlinks normales o rotos en rutas gestionadas
-o ancestros, traversal y locks inválidos. Antes de publicar prepara staging y
-conserva respaldos para recuperar fallos manejables de reemplazo; los respaldos
-se eliminan solo cuando archivos y lock se publican correctamente.
-
-No existe atomicidad global ante `SIGKILL`, apagados o fallos irrecuperables
-del sistema de archivos. En esos casos puede ser necesaria recuperación manual
-desde staging o respaldos.
-
-### Límites de la distribución frontend
-
-Instalar una skill frontend no instala herramientas Python, validadores,
-contratos M2, pruebas, PREPARE ni VERIFY. Tampoco ejecuta build, typecheck,
-pruebas frontend ni comandos del consumidor.
-
-Una skill instalada no autoriza una implementación y no implica el estado
-`VALIDATED`. Antes de ejecutar un plan frontend deben estar disponibles y
-haberse ejecutado los controles externos M2 requeridos, incluido el flujo
-PREPARE/VERIFY y su evidencia aplicable.
-
-## Gobierno de APIs y base de datos
-
-Las instrucciones y skills consolidadas establecen que:
-
-- OpenAPI se trata como contrato HTTP autoritativo y las pruebas de
-  conformidad comparan respuestas HTTP reales contra schemas declarados.
-- Las validaciones negativas cubren, cuando el contrato los declara,
-  campos requeridos, tipos, formatos, longitudes, restricciones y
-  `additionalProperties`.
-- Los validadores parciales documentan sus construcciones no soportadas;
-  no se presentan como conformidad OpenAPI completa.
-- La compatibilidad se analiza en sentido backward y forward para
-  requests, responses y consumidores estrictos. Propiedades opcionales,
-  propiedades omitidas, nulabilidad JSON y nulabilidad de persistencia
-  se evalúan por separado.
-- La arquitectura DDD mantiene separados dominio, aplicación,
-  infraestructura e interfaces HTTP; los contratos existentes se
-  preservan.
-- Todo cambio estructural se versiona mediante Liquibase XML, con
-  changesets nuevos. Los changesets aplicados permanecen inmutables y
-  su integridad se contrasta con contenido o hashes de una línea base
-  verificable.
-- Las migraciones incrementales se validan, cuando existe tooling,
-  sobre el esquema anterior con registros existentes; se verifica
-  preservación de datos, `DATABASECHANGELOG`, índices y constraints en
-  el motor real, y concurrencia cuando la regla modificada lo requiere.
-- Los riesgos de rollback que eliminan columnas o datos se documentan;
-  la recuperación hacia adelante puede ser preferible.
-
-## Evidencia de validación
-
-Los estados de evidencia no son estados de workflow de las skills:
-
-| Estado | Significado |
-| --- | --- |
-| `GENERATED` | Se produjeron artefactos; no implica compilación. |
-| `COMPILED` | La compilación terminó correctamente con evidencia. |
-| `TESTED` | Se ejecutaron pruebas con resultados verificables y alcance conocido. |
-| `VALIDATED` | Los criterios de aceptación declarados tienen evidencia suficiente para ese alcance. |
-| `NOT_RUN` | Una comprobación aplicable permanece pendiente. |
-
-Las skills pueden usar estados de workflow como `ANALYZED`,
-`READY_FOR_IMPLEMENTATION`, `READY_FOR_VALIDATION` o `BLOCKED`. Estos
-describen el progreso del trabajo y no reemplazan la evidencia anterior.
-
-La suite del instalador cubre instalación, repetición, dry-run, locks,
-upgrades verificables, symlinks y recuperación ante fallos manejables. La
-regresión de distribución de la release candidate se ejecuta contra repositorios temporales;
-no certifica la ejecución funcional de skills en un consumidor real.
-
-## Limitaciones y validación funcional futura
-
-La validación funcional de OpenAPI, DDD y Liquibase XML fue realizada durante M1 sobre el laboratorio Java, con 40 pruebas automatizadas exitosas, incluidas pruebas de contrato HTTP y migración incremental sobre PostgreSQL con datos preexistentes.
-
-La release `v0.3.0` superó sus pruebas de instalación, actualización desde
-v0.2.0, idempotencia e integridad de artefactos distribuidos.
-
-Permanece pendiente una validación funcional independiente que demuestre el
-comportamiento de GitHub Copilot utilizando skills distribuidas en un
-consumidor nuevo.
-
-El framework todavía no incorpora quality gates generales automatizados y no ofrece atomicidad global de instalación ante interrupciones abruptas.
-
-## Versiones anteriores
-
-La versión `0.2.0` distribuyó únicamente la instrucción Java y registró
-un lock de un solo archivo. La versión `0.3.0` mantiene una ruta de
-upgrade explícita y verificable desde esa instalación.
+Consulta el [CHANGELOG](CHANGELOG.md) para el historial de cambios por versión.
