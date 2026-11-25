@@ -315,7 +315,10 @@ def reject_symlink_ancestors(path):
 
 
 def validate_target(target):
-    target = absolute_path(target)
+    # Resolve the real path before the symlink check so that OS-level symlinks
+    # (e.g. /var -> /private/var on macOS) are transparently canonicalised and
+    # do not block legitimate temp-directory targets.
+    target = Path(os.path.realpath(target))
 
     reject_symlink_ancestors(target)
 
