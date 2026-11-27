@@ -84,12 +84,96 @@ Without ArchUnit, report an import scan of `domain` as static evidence only.
 
 ## Tests
 
+Follow `openapi-to-ddd/references/backend-unit-testing.md` to map each `TC-*`
+case to its layer. All four layers must have tests before a case is `VALIDATED`.
+
 | Layer | Location | Tooling |
 | --- | --- | --- |
-| Domain | `src/test/java/.../domain` | JUnit 5, no Spring context |
-| Application | `src/test/java/.../application` | JUnit 5, Mockito for ports |
-| Persistence adapters | `src/test/java/.../infrastructure` | Spring Data slice or Testcontainers |
-| REST and contract | `src/test/java/.../interfaces` | MockMvc/WebTestClient with OpenAPI validation |
+| Domain | `src/test/java/.../domain` | JUnit 5, no Spring context, no Mockito for framework types |
+| Application | `src/test/java/.../application` | JUnit 5, Mockito for ports (no Spring context) |
+| Persistence adapters | `src/test/java/.../infrastructure` | `@DataJpaTest` slice or Testcontainers; no web context |
+| REST and contract | `src/test/java/.../interfaces` | MockMvc/WebTestClient with fake services; OpenAPI validation |
+
+### Domain
+
+Test invariants, aggregate creation, value-object validation, and domain service
+operations without any Spring context.
+
+```java
+// No @SpringBootTest, no @ExtendWith(SpringExtension.class)
+class OrderTest {
+    @Test
+    void create_throws_domain_exception_on_negative_quantity() {
+        assertThrows(InvalidQuantityException.class,
+            () -> Order.create(productId, -1));
+    }
+}
+```
+
+### Application
+
+Instantiate use cases directly with Mockito mocks for ports.
+
+```java
+@ExtendWith(MockitoExtension.class)
+class PlaceOrderUseCaseTest {
+    @Mock OrderRepository repository;
+    PlaceOrderUseCase useCase;
+
+    @BeforeEach void setup() { useCase = new PlaceOrderUseCase(repository); }
+
+    @Test
+    void execute_throws_not_found_when_product_missing() {
+        when(repository.findById(any())).thenReturn(Optional.empty());
+        assertThrows(OrderNotFoundException.class,
+            () -> useCase.execute(new PlaceOrderCommand(unknownId, 1)));
+    }
+}
+```
+
+No real database, no web context. One test per `TC-*` case minimum.
+
+### Infrastructure
+
+Use `@DataJpaTest` with an in-memory or Testcontainers database. Do not start
+the full Spring context.
+
+```java
+@DataJpaTest
+class JpaOrderRepositoryTest {
+    @Autowired TestEntityManager em;
+    @Autowired JpaOrderRepository jpaRepo;
+
+    @Test
+    void findById_returns_empty_for_unknown_id() {
+        assertTrue(jpaRepo.findById(UUID.randomUUID()).isEmpty());
+    }
+}
+```
+
+Cover persistence invariants and boundary conditions declared in `TC-*` cases.
+
+### Interfaces (REST + contract)
+
+Use MockMvc or WebTestClient with fake application services injected through
+`@MockBean`.
+
+```java
+@WebMvcTest(OrderController.class)
+class OrderControllerTest {
+    @Autowired MockMvc mockMvc;
+    @MockBean PlaceOrderUseCase useCase;
+
+    @Test
+    void post_returns_400_on_missing_required_field() throws Exception {
+        mockMvc.perform(post("/orders").contentType(APPLICATION_JSON).content("{}"))
+               .andExpect(status().isBadRequest());
+    }
+}
+```
+
+Validate the generated `/v3/api-docs` schema against the approved OpenAPI
+contract. Document supported constructs and limitations.
 
 ## Migrations
 

@@ -65,7 +65,8 @@ framework:
             ".github/instructions/openapi-ddd.instructions.md",
             ".github/skills/openapi-to-ddd/SKILL.md",
             ".github/skills/openapi-to-ddd/references/contract-compatibility.md",
-            ".github/skills/openapi-to-ddd/references/backend-test-cases.md"
+            ".github/skills/openapi-to-ddd/references/backend-test-cases.md",
+            ".github/skills/openapi-to-ddd/references/backend-unit-testing.md"
           ]
         },
         "liquibase-versioning": {

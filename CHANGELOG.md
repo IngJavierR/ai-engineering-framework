@@ -6,6 +6,24 @@ ni artefacto publicado.
 
 ## [0.8.0-rc.1] - En preparación
 
+### Añadido
+
+- T1: nueva referencia `openapi-to-ddd/references/backend-unit-testing.md`
+  que mapea cada `TC-*` declarado en `test-cases.yaml` a las cuatro capas DDD
+  (domain, application, infrastructure, interfaces). Define el criterio de
+  evidencia por capa y el template de reporte por caso.
+- T2: `openapi-to-ddd/SKILL.md` Step 8 actualizado para requerir pruebas
+  unitarias en las cuatro capas, referenciar la nueva guía y seguir requiriendo
+  pruebas de contrato HTTP.
+- T3: `fastapi-development/references/fastapi-testing.md` ampliado con
+  ejemplos pytest para domain, application, infrastructure e interfaces.
+- T4: `java-spring-development/references/ddd-layout.md` Tests ampliado con
+  ejemplos JUnit 5 / Mockito / `@DataJpaTest` / `@WebMvcTest` por capa y
+  referencia a la nueva guía neutral.
+- T5: `fastapi-development/references/ddd-layout.md` Tests actualizado para
+  referenciar la guía neutral y clarificar el criterio "sin import de BD"
+  en la capa de dominio.
+
 ### Cambiado (incompatible)
 
 - B1: DDD con límites hexagonales es obligatorio para todo backend. La nueva

@@ -173,35 +173,40 @@ When structural database changes are required:
 
 Do not generate uncontrolled DDL scripts.
 
-### 8. Contract Tests
+### 8. Test Plan — All Layers
 
-Plan tests to verify:
-- Every required HTTP operation.
-- HTTP status codes.
-- Request schema validation with actual HTTP requests.
-- Actual HTTP responses against declared response schemas.
-- Required and optional fields.
-- Error contracts.
-- Authentication and authorization behavior.
-- Backward compatibility, when relevant.
+Read `references/backend-unit-testing.md` before writing any test. Every
+`TC-*` case declared in `test-cases.yaml` must be verified at each layer
+that independently enforces part of the scenario:
+
+- **Domain** — invariants, aggregate construction rules, domain errors.
+  No web framework, ORM, or database import allowed.
+- **Application** — use-case orchestration with fake ports. No real store.
+- **Infrastructure** — persistence and adapter behavior against a
+  disposable, isolated store. No web app.
+- **Interfaces** — HTTP status, response schema, validation errors, error
+  contract. In-process app with fake application dependencies.
 
 For each applicable validation mechanism, include negative cases for:
 - required properties
 - property types
 - formats
 - lengths and other declared constraints
-- additionalProperties behavior when defined by the contract
+- `additionalProperties` behavior when defined by the contract
 
 Document unsupported constructs and validation limitations. Do not
 present a partial validator as complete OpenAPI conformance.
 
+Validate real HTTP requests and responses against the approved contract.
+
 Use supplied acceptance criteria.
 
-Implement every case declared in `test-cases.yaml` and report its ID and
-result. Read `references/backend-test-cases.md` for case design guidance.
+Implement every case declared in `test-cases.yaml`, report its ID, and
+record the result per layer following the evidence template in
+`references/backend-unit-testing.md`. Read `references/backend-test-cases.md`
+for case design guidance.
 
-Do not infer functional success solely
-from generated controller compilation.
+Do not infer functional success solely from generated controller compilation.
 
 ### 9. Compatibility Analysis
 

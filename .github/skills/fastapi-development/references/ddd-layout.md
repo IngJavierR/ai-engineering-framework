@@ -81,10 +81,13 @@ static evidence only.
 
 ## Tests
 
+Follow `openapi-to-ddd/references/backend-unit-testing.md` to map each `TC-*`
+case to its layer. All four layers must have tests before a case is `VALIDATED`.
+
 | Layer | Location | Tooling |
 | --- | --- | --- |
-| Domain | `tests/<context>/domain` | pytest, no app or database |
-| Application | `tests/<context>/application` | pytest with fake ports |
+| Domain | `tests/<context>/domain` | pytest, no app or database import |
+| Application | `tests/<context>/application` | pytest with fake ports (in-memory stubs) |
 | Persistence adapters | `tests/<context>/infrastructure` | pytest against a disposable database |
 | API and contract | `tests/<context>/interfaces` | HTTPX `AsyncClient` or `TestClient` with OpenAPI validation |
 

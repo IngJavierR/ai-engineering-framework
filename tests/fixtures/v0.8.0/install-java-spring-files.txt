@@ -11,6 +11,7 @@
 .github/skills/liquibase-versioning/references/xml-conventions.md
 .github/skills/openapi-to-ddd/SKILL.md
 .github/skills/openapi-to-ddd/references/backend-test-cases.md
+.github/skills/openapi-to-ddd/references/backend-unit-testing.md
 .github/skills/openapi-to-ddd/references/contract-compatibility.md
 .github/skills/security-validation/SKILL.md
 .github/skills/security-validation/references/reporting-guidance.md
